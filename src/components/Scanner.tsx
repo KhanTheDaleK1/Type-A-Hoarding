@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 // Scanner component using html5-qrcode for barcode detection
 import { Html5Qrcode } from 'html5-qrcode';
-import { X, Zap, CameraOff } from 'lucide-react';
+import { X, CameraOff, RefreshCw, Camera } from 'lucide-react';
 
 interface ScannerProps {
   onScan: (decodedText: string) => void;
@@ -12,139 +12,148 @@ interface ScannerProps {
 const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
   const [error, setError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [cameras, setCameras] = useState<any[]>([]);
+  const [activeCameraId, setActiveCameraId] = useState<string | null>(null);
   const html5QrCodeScanner = useRef<Html5Qrcode | null>(null);
+  const scanLock = useRef<boolean>(false);
+
+  const stopScanner = async () => {
+    if (html5QrCodeScanner.current && html5QrCodeScanner.current.isScanning) {
+      await html5QrCodeScanner.current.stop();
+    }
+  };
+
+  const startScanner = async (cameraId?: string) => {
+    try {
+      setIsInitializing(true);
+      setError(null);
+      await stopScanner();
+
+      if (!html5QrCodeScanner.current) {
+        html5QrCodeScanner.current = new Html5Qrcode("reader");
+      }
+
+      const config = { 
+        fps: 15, 
+        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+          // Larger, more flexible box to help with focus
+          const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.8);
+          return { width: size, height: Math.floor(size * 0.5) };
+        },
+        aspectRatio: 1.0,
+      };
+
+      const target = cameraId ? cameraId : { facingMode: "environment" };
+
+      await html5QrCodeScanner.current.start(
+        target,
+        config,
+        (decodedText) => {
+          if (!scanLock.current) {
+            scanLock.current = true;
+            onScan(decodedText);
+            // Lock for 3 seconds to prevent rapid duplicate scans
+            setTimeout(() => { scanLock.current = false; }, 3000);
+          }
+        },
+        () => {}
+      );
+      
+      setIsInitializing(false);
+    } catch (err: any) {
+      console.error("Scanner startup failed:", err);
+      setIsInitializing(false);
+      setError(err.message || "Failed to start camera.");
+    }
+  };
 
   useEffect(() => {
-    const startScanner = async () => {
+    const init = async () => {
       try {
-        setIsInitializing(true);
-        setError(null);
-
-        // Check for secure context
-        if (!window.isSecureContext && window.location.hostname !== 'localhost') {
-          throw new Error('Camera access requires an HTTPS connection. Please use a secure URL.');
-        }
-
-        html5QrCodeScanner.current = new Html5Qrcode("reader");
-        
-        // Try to start with back camera by default
-        await html5QrCodeScanner.current.start(
-          { facingMode: "environment" },
-          { 
-            fps: 20, 
-            qrbox: (viewfinderWidth, viewfinderHeight) => {
-              const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-              const qrboxSize = Math.floor(minEdgeSize * 0.7);
-              return {
-                width: qrboxSize,
-                height: Math.floor(qrboxSize * 0.6)
-              };
-            },
-            aspectRatio: 1.0,
-          },
-          async (decodedText) => {
-            // Success! Pause scanning to show feedback
-            if (html5QrCodeScanner.current?.isScanning) {
-              // Note: stop/start is heavy, we'll just handle the status in props
-              onScan(decodedText);
-            }
-          },
-          () => {}
-        );
-        
+        const devices = await Html5Qrcode.getCameras();
+        setCameras(devices);
+        await startScanner();
+      } catch (e) {
+        setError("Could not find any cameras.");
         setIsInitializing(false);
-      } catch (err: any) {
-        console.error("Scanner startup failed:", err);
-        setIsInitializing(false);
-        if (err.message?.includes("Permission denied")) {
-          setError("Camera permission denied. Please enable it in your browser settings.");
-        } else if (err.message?.includes("not found")) {
-          setError("No camera found on this device.");
-        } else {
-          setError(err.message || "Failed to start camera.");
-        }
       }
     };
-
-    startScanner();
+    init();
 
     return () => {
-      if (html5QrCodeScanner.current && html5QrCodeScanner.current.isScanning) {
-        html5QrCodeScanner.current.stop().catch(e => console.error("Failed to stop scanner", e));
-      }
+      stopScanner().catch(console.error);
     };
-  }, [onScan]);
+  }, []);
+
+  const switchCamera = () => {
+    if (cameras.length < 2) return;
+    const currentIndex = cameras.findIndex(c => c.id === activeCameraId);
+    const nextIndex = (currentIndex + 1) % cameras.length;
+    const nextCam = cameras[nextIndex];
+    setActiveCameraId(nextCam.id);
+    startScanner(nextCam.id);
+  };
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black">
-      {/* Scanner Viewport - Ensure it takes full space and stays visible */}
+    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black font-sans">
       <div id="reader" className="w-full h-full min-h-screen overflow-hidden bg-black"></div>
 
-      {/* Error / Loading State - Only show if not scanning */}
+      {/* Manual Controls */}
+      <div className="absolute bottom-8 left-0 right-0 z-[102] flex justify-center gap-6 pointer-events-none">
+        {cameras.length > 1 && (
+          <button 
+            onClick={switchCamera}
+            className="p-4 bg-white/10 backdrop-blur-md rounded-full text-white border border-white/20 pointer-events-auto hover:bg-white/20 transition-all"
+          >
+            <RefreshCw size={24} />
+          </button>
+        )}
+        <button 
+          onClick={() => startScanner(activeCameraId || undefined)}
+          className="p-4 bg-white/10 backdrop-blur-md rounded-full text-white border border-white/20 pointer-events-auto hover:bg-white/20 transition-all"
+        >
+          <Camera size={24} />
+        </button>
+      </div>
+
       {(error || (isInitializing && !error)) && (
-        <div className="absolute inset-0 z-[101] flex flex-col items-center justify-center bg-gray-900/90 p-8 text-center text-white backdrop-blur-sm">
+        <div className="absolute inset-0 z-[101] flex flex-col items-center justify-center bg-gray-900/95 p-8 text-center text-white backdrop-blur-md">
           {isInitializing ? (
             <div className="flex flex-col items-center gap-4">
-              <div className="h-12 w-12 animate-spin rounded-full border-4 border-accent border-t-transparent"></div>
-              <p className="font-bold tracking-tight">Initializing Camera...</p>
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-accent border-t-transparent"></div>
+              <p className="font-bold text-sm tracking-widest uppercase opacity-50">Opening Lens...</p>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-6 animate-fade-in">
-              <div className="bg-danger/20 p-4 rounded-full">
-                <CameraOff size={48} className="text-danger" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-xl font-bold">Camera Error</h3>
-                <p className="text-sm opacity-70 max-w-xs mx-auto">{error}</p>
-              </div>
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => window.location.reload()}
-                  className="px-6 py-2 bg-white text-black rounded-full font-bold text-sm hover:bg-gray-200"
-                >
-                  Retry
-                </button>
-                <button 
-                  onClick={onClose}
-                  className="px-6 py-2 bg-gray-700 text-white rounded-full font-bold text-sm hover:bg-gray-600"
-                >
-                  Go Back
-                </button>
-              </div>
+              <CameraOff size={48} className="text-danger opacity-50" />
+              <p className="text-sm font-medium max-w-xs">{error}</p>
+              <button onClick={() => startScanner()} className="px-8 py-3 bg-accent text-white rounded-full font-bold shadow-lg">Retry Camera</button>
             </div>
           )}
         </div>
       )}
 
-      {/* Overlay UI */}
       <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-6">
         <div className="flex justify-between items-start pointer-events-auto">
-          <div className="bg-black/50 backdrop-blur-md rounded-full px-4 py-2 flex items-center gap-2 text-white border border-white/10">
-            <Zap size={18} className="text-yellow-400" fill="currentColor" />
-            <span className="text-sm font-bold tracking-tight">Active Scanner</span>
+          <div className="bg-black/40 backdrop-blur-xl rounded-2xl px-4 py-2 flex items-center gap-3 text-white border border-white/10 shadow-2xl">
+            <div className="w-2 h-2 rounded-full bg-success animate-pulse"></div>
+            <span className="text-xs font-black uppercase tracking-widest">Scanner Live</span>
           </div>
-          <button 
-            onClick={onClose}
-            className="p-3 bg-black/50 backdrop-blur-md rounded-full text-white border border-white/10 pointer-events-auto"
-          >
+          <button onClick={onClose} className="p-3 bg-black/40 backdrop-blur-xl rounded-2xl text-white border border-white/10 shadow-2xl pointer-events-auto">
             <X size={24} />
           </button>
         </div>
 
-        <div className="flex flex-col items-center gap-4 mb-20">
+        <div className="flex flex-col items-center gap-6 mb-32">
           {status ? (
-            <div className="bg-accent text-white px-6 py-3 rounded-2xl font-bold animate-pulse shadow-2xl border border-white/20">
+            <div className="bg-success text-white px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-[0_0_50px_rgba(16,185,129,0.5)] border border-white/20 animate-bounce">
               {status}
             </div>
           ) : (
-            <div className="bg-black/40 backdrop-blur-sm text-white/70 px-4 py-2 rounded-full text-xs uppercase tracking-[0.2em] font-black border border-white/5">
-              Align Barcode in Center
+            <div className="bg-black/20 backdrop-blur-md text-white/40 px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.3em] border border-white/5">
+              Focus Barcode
             </div>
           )}
-          
-          <div className="w-64 h-1 bg-white/10 rounded-full overflow-hidden relative">
-            <div className="absolute inset-0 bg-accent animate-[scan_2s_ease-in-out_infinite]"></div>
-          </div>
         </div>
       </div>
 
@@ -152,27 +161,12 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
         #reader { border: none !important; position: relative; }
         #reader video { object-fit: cover !important; width: 100% !important; height: 100% !important; }
         #reader__scan_region { background: transparent !important; }
-        /* Hide default library boxes */
-        #reader__scan_region > div { border: 2px solid rgba(170, 59, 255, 0.5) !important; border-radius: 12px; }
-        
-        @keyframes scan {
-          0%, 100% { transform: translateY(-90px); opacity: 0.2; }
-          50% { transform: translateY(90px); opacity: 1; }
-        }
-        .scan-line {
-          position: absolute;
-          left: 10%;
-          right: 10%;
-          height: 2px;
-          background: #aa3bff;
-          box-shadow: 0 0 15px #aa3bff, 0 0 5px white;
-          z-index: 10;
-          pointer-events: none;
-          top: 50%;
-          animation: scan 2.5s ease-in-out infinite;
+        #reader__scan_region > div { 
+          border: 2px solid #aa3bff !important; 
+          border-radius: 24px !important;
+          box-shadow: 0 0 0 4000px rgba(0,0,0,0.5) !important;
         }
       `}</style>
-      <div className="scan-line"></div>
     </div>
   );
 };
