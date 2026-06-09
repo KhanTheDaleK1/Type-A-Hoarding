@@ -39,18 +39,9 @@ const LoginPage: React.FC = () => {
             </div>
             <h1 className="text-2xl font-black leading-tight mb-2 tracking-tighter">TYPE-A<br/>HOARDING</h1>
             <div className="w-12 h-1 bg-white/40 rounded-full mb-6"></div>
-            <p className="text-sm font-medium opacity-80 leading-relaxed">
-              Professional-grade collection management for the obsessive curator.
-            </p>
           </div>
           
           <div className="mt-8 space-y-4">
-            <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest opacity-60">
-              <ShieldCheck size={16} /> Private & Secure
-            </div>
-            <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest opacity-60">
-              <Cloud size={16} /> GitHub Synced
-            </div>
           </div>
         </div>
 
