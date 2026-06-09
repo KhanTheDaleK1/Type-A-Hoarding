@@ -14,14 +14,8 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
   const [isInitializing, setIsInitializing] = useState(true);
   const [cameras, setCameras] = useState<any[]>([]);
   const [activeCameraId, setActiveCameraId] = useState<string | null>(null);
-  const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const html5QrCodeScanner = useRef<Html5Qrcode | null>(null);
   const scanLock = useRef<boolean>(false);
-
-  const addLog = (msg: string) => {
-    setDebugLogs(prev => [...prev.slice(-10), `${new Date().toLocaleTimeString().split(' ')[0]}: ${msg}`]);
-    console.log(`Scanner: ${msg}`);
-  };
 
   const stopScanner = async () => {
     if (html5QrCodeScanner.current && html5QrCodeScanner.current.isScanning) {
@@ -39,13 +33,10 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
         html5QrCodeScanner.current = new Html5Qrcode("reader");
       }
 
-      addLog(`Initializing -> ${cameraId || 'environment'}`);
-
       const config = { 
         fps: 15, 
         qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
           const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.8);
-          addLog(`Viewfinder: ${viewfinderWidth}x${viewfinderHeight} (box:${size})`);
           return { width: size, height: Math.floor(size * 0.5) };
         },
         aspectRatio: 1.0,
@@ -58,7 +49,6 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
         config,
         (decodedText) => {
           if (!scanLock.current) {
-            addLog(`SUCCESS! -> ${decodedText.slice(0, 10)}...`);
             scanLock.current = true;
             onScan(decodedText);
             setTimeout(() => { scanLock.current = false; }, 3000);
@@ -67,10 +57,8 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
         () => {}
       );
       
-      addLog('Started successfully');
       setIsInitializing(false);
     } catch (err: any) {
-      addLog(`ERROR: ${err.message}`);
       console.error("Scanner: Startup FAILED:", err);
       setIsInitializing(false);
       setError(err.message || "Failed to start camera.");
@@ -80,13 +68,10 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
   useEffect(() => {
     const init = async () => {
       try {
-        addLog('Enumerating cameras...');
         const devices = await Html5Qrcode.getCameras();
-        addLog(`Found ${devices.length} cameras`);
         setCameras(devices);
         await startScanner();
       } catch (e) {
-        addLog('Device enumeration failed');
         setError("Could not find any cameras.");
         setIsInitializing(false);
       }
@@ -167,15 +152,6 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
               Focus Barcode
             </div>
           )}
-
-          {/* Debug Console Overlay */}
-          <div className="w-full max-w-xs bg-black/80 rounded-lg p-2 font-mono text-[8px] text-green-400 border border-white/10 pointer-events-auto max-h-24 overflow-y-auto mt-4">
-            {debugLogs.map((log, i) => (
-              <div key={i} className="whitespace-nowrap overflow-hidden text-ellipsis">
-                {log}
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 

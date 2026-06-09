@@ -10,89 +10,88 @@ export interface BarcodeResult {
 }
 
 export const fetchMetadataByBarcode = async (barcode: string): Promise<BarcodeResult | null> => {
-  // Clean barcode (remove spaces/dashes)
-  const cleanBarcode = barcode.replace(/[-\s]/g, '');
+  // Clean and normalize barcode
+  let cleanBarcode = barcode.replace(/[-\s]/g, '');
+  
+  // Normalize UPC-A (12 digits) to EAN-13 by padding with a leading zero
+  if (cleanBarcode.length === 12) {
+    cleanBarcode = '0' + cleanBarcode;
+  }
+  
   console.log(`Searching for barcode: ${cleanBarcode}`);
 
-  try {
-    // 1. Try Google Books API (Books - No Key needed for basic lookup, very reliable)
-    // Works for many items that have ISBNs
-    const googleResponse = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanBarcode}`);
-    if (googleResponse.ok) {
-      const googleData = await googleResponse.json();
-      if (googleData.items && googleData.items.length > 0) {
-        const book = googleData.items[0].volumeInfo;
+  const tryLookup = async (code: string): Promise<BarcodeResult | null> => {
+    try {
+      // 1. Google Books (Good for ISBNs)
+      const gBooks = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${code}`).then(r => r.json());
+      if (gBooks.items?.[0]) {
+        const b = gBooks.items[0].volumeInfo;
         return {
-          title: book.title,
-          author: book.authors?.join(', '),
-          publisher: book.publisher,
-          year: book.publishedDate?.split('-')[0],
-          thumbnail: book.imageLinks?.thumbnail || book.imageLinks?.smallThumbnail,
-          description: book.description,
+          title: b.title,
+          author: b.authors?.join(', '),
+          publisher: b.publisher,
+          year: b.publishedDate?.split('-')[0],
+          thumbnail: b.imageLinks?.thumbnail || b.imageLinks?.smallThumbnail,
           mediaType: 'Book',
           source: 'Google Books'
         };
       }
-    }
 
-    // 2. Try Open Library (Books - No Key, Unlimited)
-    const olResponse = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanBarcode}&format=json&jscmd=data`);
-    const olData = await olResponse.json();
-    const bookKey = `ISBN:${cleanBarcode}`;
-    
-    if (olData[bookKey]) {
-      const book = olData[bookKey];
-      return {
-        title: book.title,
-        author: book.authors?.[0]?.name,
-        publisher: book.publishers?.[0]?.name,
-        year: book.publish_date?.toString().split(' ').pop(), // Try to get just the year
-        thumbnail: book.cover?.large || book.cover?.medium,
-        mediaType: 'Book',
-        source: 'Open Library'
-      };
-    }
-
-    // 3. Try UPCItemDB (Movies, Games, etc.)
-    const upcResponse = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${cleanBarcode}`);
-    if (upcResponse.ok) {
-      const upcData = await upcResponse.json();
-      if (upcData.items && upcData.items.length > 0) {
-        const item = upcData.items[0];
+      // 2. Open Library
+      const ol = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${code}&format=json&jscmd=data`).then(r => r.json());
+      if (ol[`ISBN:${code}`]) {
+        const b = ol[`ISBN:${code}`];
         return {
-          title: item.title,
-          publisher: item.brand,
-          description: item.description,
-          thumbnail: item.images?.[0],
-          mediaType: item.category?.split(' > ').pop() || 'Item',
-          year: item.specs?.year,
+          title: b.title,
+          author: b.authors?.[0]?.name,
+          year: b.publish_date?.toString().split(' ').pop(),
+          thumbnail: b.cover?.large || b.cover?.medium,
+          mediaType: 'Book',
+          source: 'Open Library'
+        };
+      }
+
+      // 3. UPCItemDB (Movies/Media)
+      const upc = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${code}`).then(r => r.json());
+      if (upc.items?.[0]) {
+        const i = upc.items[0];
+        return {
+          title: i.title,
+          description: i.description,
+          thumbnail: i.images?.[0],
+          mediaType: i.category?.split(' > ').pop() || 'Item',
+          year: i.specs?.year,
           source: 'UPCItemDB'
         };
       }
-    }
-    
-    // 4. Try BigBook (Alternative Book API)
-    const bbResponse = await fetch(`https://api2.isbndb.com/book/${cleanBarcode}`, {
-      headers: { 'Authorization': '43210_88888888' } // Common public test key if it works
-    }).catch(() => null);
-    
-    if (bbResponse && bbResponse.ok) {
-      const bbData = await bbResponse.json();
-      if (bbData.book) {
+
+      // 4. Fallback Keyword Search (If barcode search fails, try searching the number as a generic term)
+      const searchFallback = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${code}`).then(r => r.json());
+      if (searchFallback.items?.[0]) {
+        const b = searchFallback.items[0].volumeInfo;
         return {
-          title: bbData.book.title,
-          author: bbData.book.authors?.[0],
-          year: bbData.book.date_published,
-          thumbnail: bbData.book.image,
-          mediaType: 'Book',
-          source: 'ISBNDB'
+          title: b.title,
+          author: b.authors?.join(', '),
+          year: b.publishedDate?.split('-')[0],
+          thumbnail: b.imageLinks?.thumbnail,
+          mediaType: 'Item',
+          source: 'Search Fallback'
         };
       }
-    }
 
-    return null;
-  } catch (error) {
-    console.error('Error fetching metadata:', error);
-    return null;
+      return null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  // Try normalized code
+  let result = await tryLookup(cleanBarcode);
+  
+  // If failed and we added a zero, try without the zero
+  if (!result && cleanBarcode.startsWith('0')) {
+    result = await tryLookup(cleanBarcode.substring(1));
   }
+
+  return result;
 };
