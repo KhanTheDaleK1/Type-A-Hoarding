@@ -8,46 +8,32 @@ export interface BarcodeResult {
   mediaType?: string;
   source: string;
 }
+
 export const fetchMetadataByBarcode = async (barcode: string): Promise<BarcodeResult | null> => {
-  const cleanBarcode = barcode.replace(/[-\s]/g, '');
+  // 1. Clean and Normalize
+  let cleanBarcode = barcode.replace(/[-\s]/g, '');
   const keys = JSON.parse(localStorage.getItem('hoarding_api_keys') || '{"tmdb":"","omdb":""}');
 
   const tryLookup = async (code: string): Promise<BarcodeResult | null> => {
     try {
-      // 1. TMDb (If Key provided) - Best for Movies/TV
+      // Priority 1: High-Quality Movie APIs (User provided keys)
       if (keys.tmdb) {
-        const tmdbSearch = await fetch(`https://api.themoviedb.org/3/find/${code}?api_key=${keys.tmdb}&external_source=imdb_id`).then(r => r.json());
-        // Note: TMDb find works with IMDB IDs. For Barcodes, we often need a text search first
-        const movie = tmdbSearch.movie_results?.[0];
-        if (movie) {
+        // TMDb usually uses barcodes as 'external_ids' but searching by query is more reliable for PWAs
+        const tmdb = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${keys.tmdb}&query=${code}`).then(r => r.json());
+        if (tmdb.results?.[0]) {
+          const m = tmdb.results[0];
           return {
-            title: movie.title,
-            year: movie.release_date?.split('-')[0],
-            thumbnail: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : undefined,
-            description: movie.overview,
+            title: m.title,
+            year: m.release_date?.split('-')[0],
+            thumbnail: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : undefined,
+            description: m.overview,
             mediaType: 'Movie',
             source: 'TMDb'
           };
         }
       }
 
-      // 2. OMDb (If Key provided)
-      if (keys.omdb) {
-        const omdb = await fetch(`https://www.omdbapi.com/?i=${code}&apikey=${keys.omdb}`).then(r => r.json());
-        if (omdb.Title) {
-          return {
-            title: omdb.Title,
-            author: omdb.Director,
-            year: omdb.Year,
-            thumbnail: omdb.Poster !== 'N/A' ? omdb.Poster : undefined,
-            description: omdb.Plot,
-            mediaType: omdb.Type === 'movie' ? 'Movie' : 'Item',
-            source: 'OMDb'
-          };
-        }
-      }
-
-      // 3. MusicBrainz - Best for CDs/Vinyl/Music
+      // Priority 2: MusicBrainz (Excellent for 1D barcodes on CDs/Vinyl)
       const mbRes = await fetch(`https://musicbrainz.org/ws/2/release/?query=barcode:${code}&fmt=json`).then(r => r.json());
       if (mbRes.releases?.[0]) {
         const rel = mbRes.releases[0];
@@ -60,36 +46,25 @@ export const fetchMetadataByBarcode = async (barcode: string): Promise<BarcodeRe
         };
       }
 
-      // 4. Google Books (Standard Fallback)
-      const gBooks = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${code}`).then(r => r.json());
+      // Priority 3: Google Books (Master fallback for almost everything with a number)
+      const gBooks = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${code}`).then(r => r.json());
       if (gBooks.items?.[0]) {
         const b = gBooks.items[0].volumeInfo;
-        return {
-          title: b.title,
-          author: b.authors?.join(', '),
-          year: b.publishedDate?.split('-')[0],
-          thumbnail: b.imageLinks?.thumbnail || b.imageLinks?.smallThumbnail,
-          description: b.description,
-          mediaType: 'Book',
-          source: 'Google Books'
-        };
+        // Verify it's a good match
+        if (b.title) {
+          return {
+            title: b.title,
+            author: b.authors?.join(', '),
+            year: b.publishedDate?.split('-')[0],
+            thumbnail: b.imageLinks?.thumbnail || b.imageLinks?.smallThumbnail,
+            description: b.description,
+            mediaType: 'Book',
+            source: 'Google'
+          };
+        }
       }
 
-      // 5. Keyword search fallback for partial codes
-      const fallback = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${code}`).then(r => r.json());
-      if (fallback.items?.[0]) {
-        const b = fallback.items[0].volumeInfo;
-        return {
-          title: b.title,
-          author: b.authors?.join(', '),
-          year: b.publishedDate?.split('-')[0],
-          thumbnail: b.imageLinks?.thumbnail,
-          mediaType: 'Item',
-          source: 'Deep Search'
-        };
-      }
-
-      // 6. Direct UPCItemDB
+      // Priority 4: UPCItemDB (Specific retail products)
       const upc = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${code}`).then(r => r.json());
       if (upc.items?.[0]) {
         const i = upc.items[0];
@@ -109,16 +84,16 @@ export const fetchMetadataByBarcode = async (barcode: string): Promise<BarcodeRe
     }
   };
 
-  // Run searches
+  // Execution Pipeline: Try Original, then Padded, then Truncated
   let result = await tryLookup(cleanBarcode);
-
-  // Normalized fallback (Leading zero)
+  
   if (!result && cleanBarcode.length === 12) {
-    result = await tryLookup('0' + cleanBarcode);
+    result = await tryLookup('0' + cleanBarcode); // Try EAN conversion
   }
-  // Truncated fallback (Common Disney/Disney style)
+  
   if (!result && cleanBarcode.length === 10) {
-    result = await tryLookup('0' + cleanBarcode);
+    result = await tryLookup('07869' + cleanBarcode.substring(5)); // Specialized Disney logic if we have partials
+    if (!result) result = await tryLookup('0' + cleanBarcode);
   }
 
   return result;

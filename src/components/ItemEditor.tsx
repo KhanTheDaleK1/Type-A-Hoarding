@@ -30,13 +30,14 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
 
   const [scanStatus, setScanStatus] = useState<string | undefined>();
 
-  const handleScan = async (barcode: string) => {
+  const handleScan = async (code: string) => {
     if (scanStatus) return; // Prevent double scans
     
     // Check for Shared Collection QR Code
-    if (barcode.includes('HOARDING_SHARE_V1')) {
+    if (code.includes('HOARDING_SHARE_V1')) {
       try {
-        const shared = JSON.parse(barcode);
+        const shared = JSON.parse(code);
+        setScanStatus(`Collection: ${shared.name}`);
         if (confirm(`Import shared collection "${shared.name}"?`)) {
           const newId = crypto.randomUUID();
           await db.collections.add({
@@ -44,15 +45,9 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
             name: shared.name,
             type: shared.collectionType,
             createdAt: Date.now(),
-            customFields: [] // Note: Custom fields can be expanded in V2
+            customFields: []
           });
-          
-          if (shared.syncToken) {
-            // Store sync token/info for live updates if desired
-            console.log(`Detected live sync token for ${shared.name}`);
-          }
-
-          setScanStatus(`Imported: ${shared.name}!`);
+          setScanStatus(`Success! Imported.`);
           setTimeout(() => onClose(), 2000);
           return;
         }
@@ -61,8 +56,8 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
       }
     }
 
-    setScanStatus('Searching...');
-    const metadata = await fetchMetadataByBarcode(barcode);
+    setScanStatus('Searching Databases...');
+    const metadata = await fetchMetadataByBarcode(code);
     
     if (metadata) {
       setScanStatus(`Found: ${metadata.title}`);
@@ -76,8 +71,9 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
         images: metadata.thumbnail ? [metadata.thumbnail] : [],
         dateAdded: Date.now(),
         personalRating: 5,
+        watched: false,
         loanedStatus: false,
-        notes: metadata.description || `Fetched from ${metadata.source}`,
+        notes: metadata.description || `Metadata from ${metadata.source}`,
         customData: {
           author: metadata.author,
           publisher: metadata.publisher,
@@ -86,13 +82,9 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
       };
 
       await db.items.add(newItem);
-      
-      // Success feedback
-      setTimeout(() => {
-        setScanStatus(undefined);
-      }, 2000);
+      setTimeout(() => setScanStatus(undefined), 2000);
     } else {
-      setScanStatus(`Not Found: ${barcode}. Try again?`);
+      setScanStatus(`Not Found: ${code}`);
       setTimeout(() => setScanStatus(undefined), 4000);
     }
   };
