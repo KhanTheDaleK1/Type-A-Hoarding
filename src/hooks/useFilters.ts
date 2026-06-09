@@ -33,7 +33,7 @@ export const filterItems = (items: Item[], filters: FilterOptions): Item[] => {
       let comparison = 0;
       switch (filters.sortBy) {
         case 'title':
-          comparison = a.sortTitle.localeCompare(b.sortTitle);
+          comparison = a.sortTitle.localeCompare(b.sortTitle, undefined, { numeric: true, sensitivity: 'base' });
           break;
         case 'dateAdded':
           comparison = b.dateAdded - a.dateAdded; // Newest first for date added
