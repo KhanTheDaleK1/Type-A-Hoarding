@@ -28,6 +28,15 @@ const Settings: React.FC = () => {
     localStorage.setItem('hoarding_accent', accent);
   }, [accent]);
 
+  const [apiKeys, setApiKeys] = useState(() => {
+    const saved = localStorage.getItem('hoarding_api_keys');
+    return saved ? JSON.parse(saved) : { tmdb: '', omdb: '' };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('hoarding_api_keys', JSON.stringify(apiKeys));
+  }, [apiKeys]);
+
   const handleSaveConfig = () => {
     syncService.saveConfig(ghConfig);
     setSyncStatus({ type: 'success', msg: 'GitHub configuration saved locally.' });
@@ -195,6 +204,37 @@ const Settings: React.FC = () => {
                   />
                 ))}
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-sm font-bold uppercase tracking-widest opacity-50 mb-4 flex items-center gap-2">
+            <Cloud size={16} /> External Metadata APIs
+          </h2>
+          <div className="bg-bg-secondary p-4 rounded-xl border border-border space-y-4">
+            <p className="text-[10px] opacity-60 leading-relaxed uppercase font-black">
+              Enhance movie & game lookups by providing your own free developer keys.
+            </p>
+            <div>
+              <label className="block text-xs font-bold uppercase opacity-50 mb-1">TMDb API Key (v3)</label>
+              <input 
+                type="password" 
+                placeholder="TheMovieDB Key"
+                className="w-full rounded-lg border border-border bg-bg p-2 text-sm outline-none"
+                value={apiKeys.tmdb}
+                onChange={e => setApiKeys({ ...apiKeys, tmdb: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase opacity-50 mb-1">OMDb API Key</label>
+              <input 
+                type="password" 
+                placeholder="OpenMovieDB Key"
+                className="w-full rounded-lg border border-border bg-bg p-2 text-sm outline-none"
+                value={apiKeys.omdb}
+                onChange={e => setApiKeys({ ...apiKeys, omdb: e.target.value })}
+              />
             </div>
           </div>
         </section>

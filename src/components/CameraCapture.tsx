@@ -18,7 +18,13 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose }) => 
       try {
         setIsInitializing(true);
         const s = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: 'environment' }, 
+          video: { 
+            facingMode: 'environment',
+            width: { ideal: 4096 }, // Try for 4K
+            height: { ideal: 2160 },
+            focusMode: "continuous",
+            whiteBalanceMode: "continuous"
+          } as any, 
           audio: false 
         });
         setStream(s);

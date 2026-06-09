@@ -34,13 +34,18 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
       }
 
       const config = { 
-        fps: 24, // Higher FPS for better 1D detection
+        fps: 30, // Maximize FPS
         qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
           const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.85);
-          return { width: size, height: Math.floor(size * 0.4) }; // Wider box for 1D barcodes
+          return { width: size, height: Math.floor(size * 0.4) };
         },
         aspectRatio: 1.0,
-        // Force 1D Barcode formats
+        videoConstraints: {
+          facingMode: "environment",
+          width: { ideal: 1920 }, // Request Full HD
+          height: { ideal: 1080 },
+          focusMode: "continuous" as any // Try to force continuous focus
+        },
         formatsToSupport: [ 
           Html5QrcodeSupportedFormats.EAN_13, 
           Html5QrcodeSupportedFormats.EAN_8, 
