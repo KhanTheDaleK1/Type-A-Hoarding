@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Collection, Item } from '../types';
 import { db } from '../db/db';
-import { X, Camera, Save, Star, Plus } from 'lucide-react';
+import { X, Camera, Save, Plus } from 'lucide-react';
 import Scanner from './Scanner';
 import { fetchMetadataByBarcode } from '../db/metadata';
 

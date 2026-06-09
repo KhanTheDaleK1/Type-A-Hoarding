@@ -11,7 +11,7 @@ const ItemDetail: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   
   const item = useLiveQuery(() => db.items.get(id || ''));
-  const collection = useLiveQuery(() => item ? db.collections.get(item.collectionId) : null, [item]);
+  const collection = useLiveQuery(() => item ? db.collections.get(item.collectionId) : undefined, [item]);
 
   const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this item?')) {

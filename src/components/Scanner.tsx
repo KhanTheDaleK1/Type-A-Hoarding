@@ -26,12 +26,6 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
 
         html5QrCodeScanner.current = new Html5Qrcode("reader");
         
-        const config = { 
-          fps: 20, 
-          qrbox: { width: 280, height: 180 },
-          aspectRatio: 1.0,
-        };
-
         // Try to start with back camera by default
         await html5QrCodeScanner.current.start(
           { facingMode: "environment" },
