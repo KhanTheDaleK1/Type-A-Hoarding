@@ -10,15 +10,20 @@ export const useAutoSync = () => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Skip the very first load to avoid pushing immediately on app start
-    if (firstLoad.current) {
+    // Check if sync is configured
+    const config = syncService.getConfig();
+    if (!config || !config.token) {
       firstLoad.current = false;
       return;
     }
 
-    // Check if sync is configured
-    const config = syncService.getConfig();
-    if (!config || !config.token) return;
+    if (firstLoad.current) {
+      firstLoad.current = false;
+      // Do an initial pull on app load to grab changes from other devices
+      console.log('App loaded, checking for remote updates...');
+      syncService.pull().catch(e => console.error('Initial pull failed:', e));
+      return; // Don't push immediately after pulling
+    }
 
     // Debounce the sync to avoid hitting GitHub API limits
     if (timerRef.current) clearTimeout(timerRef.current);

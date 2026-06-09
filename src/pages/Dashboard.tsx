@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
-import { Plus, Settings as SettingsIcon, Package, Edit2, Search, Camera } from 'lucide-react';
+import { syncService } from '../db/sync';
+import { Plus, Settings as SettingsIcon, Package, Edit2, Search, Camera, RefreshCw } from 'lucide-react';
 import CollectionEditor from '../components/CollectionEditor';
 import Scanner from '../components/Scanner';
 import type { Collection } from '../types';
@@ -12,9 +13,21 @@ const Dashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showScanner, setShowScanner] = useState(false);
   const [scanStatus, setScanStatus] = useState<string | undefined>();
+  const [isSyncing, setIsSyncing] = useState(false);
   
   const collections = useLiveQuery(() => db.collections.toArray());
   const items = useLiveQuery(() => db.items.toArray());
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    try {
+      await syncService.pull();
+    } catch (e) {
+      console.error("Manual sync failed", e);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const handleScan = async (code: string) => {
     if (scanStatus) return;
@@ -82,6 +95,14 @@ const Dashboard: React.FC = () => {
             title="Scan Collection QR"
           >
             <Camera size={24} />
+          </button>
+          <button 
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            className={`icon-button bg-bg-secondary border border-border ${isSyncing ? 'text-accent' : ''}`}
+            title="Sync Data"
+          >
+            <RefreshCw size={24} className={isSyncing ? "animate-spin" : ""} />
           </button>
           <Link to="/settings" className="icon-button bg-bg-secondary border border-border" title="Settings">
             <SettingsIcon size={24} />
