@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+// Scanner component using html5-qrcode for barcode detection
 import { Html5Qrcode } from 'html5-qrcode';
 import { X, Zap, CameraOff } from 'lucide-react';
 

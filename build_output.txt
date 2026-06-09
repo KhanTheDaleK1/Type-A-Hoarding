@@ -1,0 +1,27 @@
+
+> type-a-hoarding@0.0.0 build
+> tsc -b && vite build
+
+vite v8.0.16 building client environment for production...
+[2Ktransforming...✓ 1788 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/registerSW.js                0.13 kB
+dist/manifest.webmanifest         0.31 kB
+dist/index.html                   0.59 kB │ gzip:   0.35 kB
+dist/assets/index-CJHTTWuM.css   28.89 kB │ gzip:   6.40 kB
+dist/assets/index-DzxYxh2f.js   751.23 kB │ gzip: 228.94 kB
+
+✓ built in 493ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+PWA v1.3.0
+mode      generateSW
+precache  7 entries (762.55 KiB)
+files generated
+  dist/sw.js
+  dist/workbox-9c191d2f.js
