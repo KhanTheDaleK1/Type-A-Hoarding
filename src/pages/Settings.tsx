@@ -66,6 +66,31 @@ const Settings: React.FC = () => {
     a.click();
   };
 
+  const importData = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        if (data.collections && data.items) {
+          if (confirm('This will append imported data to your current database. Continue?')) {
+            await db.collections.bulkPut(data.collections);
+            await db.items.bulkPut(data.items);
+            alert('Data imported successfully!');
+            window.location.reload();
+          }
+        } else {
+          alert('Invalid file format. Must contain collections and items.');
+        }
+      } catch (err) {
+        alert('Failed to parse file.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const clearAll = async () => {
     if (confirm('Are you sure you want to delete ALL your data? This cannot be undone.')) {
       await db.collections.clear();
@@ -208,6 +233,11 @@ const Settings: React.FC = () => {
               <Download size={20} />
               <span>Export Database (JSON)</span>
             </button>
+            <label className="settings-item cursor-pointer">
+              <Upload size={20} />
+              <span>Import Database (JSON)</span>
+              <input type="file" accept=".json" className="hidden" onChange={importData} />
+            </label>
             <button className="settings-item danger" onClick={clearAll}>
               <Trash2 size={20} />
               <span>Clear All Local Data</span>

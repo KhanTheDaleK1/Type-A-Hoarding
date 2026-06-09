@@ -8,7 +8,9 @@ import {
 } from 'lucide-react';
 import { initialFilters, filterItems } from '../hooks/useFilters';
 import type { FilterOptions } from '../hooks/useFilters';
+import type { Item } from '../types';
 import ItemEditor from '../components/ItemEditor';
+import MovieWheel from '../components/MovieWheel';
 
 type ViewMode = 'compact' | 'grid' | 'detailed';
 
@@ -16,6 +18,7 @@ const CollectionView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [showFilters, setShowFilters] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showWheel, setShowWheel] = useState(false);
   const [filters, setFilters] = useState<FilterOptions>(initialFilters);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     return (localStorage.getItem('hoarding_view_mode') as ViewMode) || 'detailed';
@@ -46,7 +49,11 @@ const CollectionView: React.FC = () => {
         const deltaZ = Math.abs(z! - lastZ);
 
         if ((deltaX > threshold && deltaY > threshold) || (deltaX > threshold && deltaZ > threshold) || (deltaY > threshold && deltaZ > threshold)) {
-          pickRandomItem();
+          if (collection?.type === 'Movies') {
+            setShowWheel(true);
+          } else {
+            pickRandomItem();
+          }
         }
       }
 
@@ -55,13 +62,22 @@ const CollectionView: React.FC = () => {
 
     window.addEventListener('devicemotion', handleMotion);
     return () => window.removeEventListener('devicemotion', handleMotion);
-  }, [rawItems]);
+  }, [rawItems, collection]);
 
   const pickRandomItem = () => {
-    if (!filteredItems.length) return;
-    const randomIndex = Math.floor(Math.random() * filteredItems.length);
-    const item = filteredItems[randomIndex];
-    window.location.hash = `/item/${item.id}`; // Simple navigation for now
+    const itemsToPickFrom = (rawItems || []).filter(i => !i.watched);
+    if (!itemsToPickFrom.length) return;
+    const randomIndex = Math.floor(Math.random() * itemsToPickFrom.length);
+    const item = itemsToPickFrom[randomIndex];
+    window.location.hash = `/item/${item.id}`;
+  };
+
+  const handleMarkWatched = async (item: Item) => {
+    await db.items.update(item.id, { 
+      watched: true, 
+      customData: { ...item.customData, dateWatched: new Date().toISOString().split('T')[0] } 
+    });
+    setShowWheel(false);
   };
 
   const filteredItems = useMemo(() => {
@@ -69,7 +85,7 @@ const CollectionView: React.FC = () => {
   }, [rawItems, filters]);
 
   const alphabet = useMemo(() => {
-    const chars = new Set(filteredItems.map(i => i.sortTitle[0].toUpperCase()));
+    const chars = new Set(filteredItems.map(i => i.sortTitle?.[0]?.toUpperCase() || '#'));
     return Array.from(chars).sort();
   }, [filteredItems]);
 
@@ -97,8 +113,8 @@ const CollectionView: React.FC = () => {
         
         <div className="header-actions">
           <button 
-            className="icon-button"
-            onClick={pickRandomItem}
+            className={`icon-button ${showWheel ? 'accent' : ''}`}
+            onClick={() => collection.type === 'Movies' ? setShowWheel(true) : pickRandomItem()}
             title="Random Pick"
           >
             <Shuffle size={20} />
@@ -182,15 +198,15 @@ const CollectionView: React.FC = () => {
 
       <div className={`item-list ${viewMode}`}>
         {filteredItems.map((item, index) => {
-          const firstLetter = item.sortTitle[0].toUpperCase();
-          const prevLetter = index > 0 ? filteredItems[index - 1].sortTitle[0].toUpperCase() : null;
+          const firstLetter = item.sortTitle?.[0]?.toUpperCase() || '#';
+          const prevLetter = index > 0 ? filteredItems[index - 1].sortTitle?.[0]?.toUpperCase() : null;
           const showAnchor = firstLetter !== prevLetter;
 
           return (
             <Link 
               key={item.id} 
               to={`/item/${item.id}`} 
-              className="item-row"
+              className={`item-row ${item.watched ? 'opacity-40 grayscale-[0.5]' : ''}`}
               id={showAnchor ? `letter-${firstLetter}` : undefined}
             >
               <div className="item-thumbnail">
@@ -206,10 +222,19 @@ const CollectionView: React.FC = () => {
                 {viewMode === 'detailed' && item.notes && (
                   <p className="mt-2 text-sm italic line-clamp-2">{item.notes}</p>
                 )}
-                {viewMode === 'detailed' && item.mediaType && (
-                  <span className="mt-2 inline-block text-[10px] font-bold uppercase tracking-wider bg-accent text-white px-2 py-0.5 rounded shadow-sm">
-                    {item.mediaType}
-                  </span>
+                {viewMode === 'detailed' && (item.mediaType || item.watched) && (
+                  <div className="flex gap-2 mt-2">
+                    {item.mediaType && (
+                      <span className="inline-block text-[10px] font-bold uppercase tracking-wider bg-accent text-white px-2 py-0.5 rounded shadow-sm">
+                        {item.mediaType}
+                      </span>
+                    )}
+                    {item.watched && (
+                      <span className="inline-block text-[10px] font-bold uppercase tracking-wider bg-gray-500 text-white px-2 py-0.5 rounded shadow-sm">
+                        Watched
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
             </Link>
@@ -226,6 +251,14 @@ const CollectionView: React.FC = () => {
         <ItemEditor 
           collection={collection} 
           onClose={() => setShowAddModal(false)} 
+        />
+      )}
+
+      {showWheel && (
+        <MovieWheel 
+          items={rawItems || []} 
+          onClose={() => setShowWheel(false)} 
+          onWatched={handleMarkWatched}
         />
       )}
     </div>

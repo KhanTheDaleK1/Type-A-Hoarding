@@ -21,8 +21,9 @@ export interface Item {
   collectionId: string;
   title: string;
   sortTitle: string; 
-  mediaType?: string; // e.g., DVD, VHS, Digital, Hardcover, Digital (Steam), etc.
-  images: string[]; 
+  mediaType?: string; 
+  images: string[]; // Mandate: up to 4 images
+  watched?: boolean; // For the 'Spinning Wheel' logic
   loanedStatus: boolean;
   loanedTo?: string;
   purchasePrice?: number;

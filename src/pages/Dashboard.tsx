@@ -2,74 +2,102 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
-import { Plus, Settings as SettingsIcon, Package, Edit2 } from 'lucide-react';
+import { Plus, Settings as SettingsIcon, Package, Edit2, Search } from 'lucide-react';
 import CollectionEditor from '../components/CollectionEditor';
 import type { Collection } from '../types';
 
 const Dashboard: React.FC = () => {
+  const [editingCollection, setEditingCollection] = useState<Collection | 'new' | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const collections = useLiveQuery(() => db.collections.toArray());
-  const [editingCollection, setEditingCollection] = useState<Collection | null | 'new'>(null);
+  const items = useLiveQuery(() => db.items.toArray());
 
-  const stats = useLiveQuery(async () => {
-    const items = await db.items.toArray();
-    return {
-      totalItems: items.length,
-      totalValue: items.reduce((sum, item) => sum + (item.estimatedValue || 0), 0)
-    };
-  });
+  const filteredCollections = collections?.filter(c => 
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    items?.some(i => i.collectionId === c.id && i.title.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const totalValue = items?.reduce((sum, item) => sum + (item.estimatedValue || 0), 0) || 0;
 
   return (
     <div className="dashboard pb-20">
-      <header className="dashboard-header flex items-center justify-between py-6">
-        <div>
-          <h1 className="text-3xl font-bold">Collections</h1>
-          <p className="text-sm opacity-60">
-            {stats?.totalItems || 0} items • ${stats?.totalValue?.toLocaleString() || 0} total value
+      <header className="view-header flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+        <div className="space-y-1">
+          <h1 className="text-4xl font-black tracking-tight">Your Hoard</h1>
+          <p className="text-sm opacity-50 font-bold uppercase tracking-widest">
+            {collections?.length || 0} Collections • {items?.length || 0} Items • ${totalValue.toLocaleString()}
           </p>
         </div>
-        <div className="header-actions">
-          <Link to="/settings" className="icon-button">
+        
+        <div className="flex gap-2">
+          <div className="relative group flex-grow md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-accent transition-colors" size={18} />
+            <input 
+              type="text"
+              placeholder="Global Search..."
+              className="w-full pl-10 pr-4 py-3 bg-bg-secondary border border-border rounded-2xl outline-none focus:border-accent transition-all text-sm font-medium"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <Link to="/settings" className="icon-button p-3 bg-bg-secondary rounded-2xl border border-border hover:bg-border transition-all">
             <SettingsIcon size={24} />
           </Link>
+          <button 
+            onClick={() => setEditingCollection('new')}
+            className="icon-button accent p-3 rounded-2xl shadow-lg active:scale-95 transition-transform"
+          >
+            <Plus size={24} />
+          </button>
         </div>
       </header>
 
-      <div className="collection-grid">
-        {collections?.map((collection) => (
-          <div key={collection.id} className="group relative">
-            <Link 
-              to={`/collection/${collection.id}`} 
-              className="collection-card"
-            >
-              <div className="card-icon">
-                <Package size={32} />
-              </div>
-              <div className="card-content">
-                <h2 className="font-bold text-lg">{collection.name}</h2>
-                <p className="text-xs opacity-50 uppercase tracking-widest">{collection.type}</p>
-              </div>
-            </Link>
-            <button 
-              onClick={() => setEditingCollection(collection)}
-              className="absolute top-2 right-2 p-2 bg-bg border border-border rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:text-accent"
-            >
-              <Edit2 size={14} />
-            </button>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredCollections?.map(collection => {
+          const collectionItems = items?.filter(i => i.collectionId === collection.id) || [];
+          const value = collectionItems.reduce((sum, i) => sum + (i.estimatedValue || 0), 0);
+          
+          return (
+            <div key={collection.id} className="relative group">
+              <Link 
+                to={`/collection/${collection.id}`}
+                className="block p-6 bg-bg-secondary rounded-3xl border border-border hover:border-accent transition-all shadow-sm hover:shadow-xl"
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-accent/10 rounded-2xl text-accent">
+                    <Package size={24} />
+                  </div>
+                  <button 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setEditingCollection(collection);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-2 hover:bg-accent/10 rounded-lg transition-all"
+                  >
+                    <Edit2 size={16} className="text-accent" />
+                  </button>
+                </div>
+                <h2 className="text-xl font-black mb-1">{collection.name}</h2>
+                <p className="text-sm opacity-50 font-bold uppercase tracking-wider mb-4">{collection.type}</p>
+                <div className="flex justify-between items-center pt-4 border-t border-border/50">
+                  <span className="text-xs font-black opacity-40">{collectionItems.length} items</span>
+                  <span className="text-xs font-black text-accent">${value.toLocaleString()}</span>
+                </div>
+              </Link>
+            </div>
+          );
+        })}
+        
+        {(!filteredCollections || filteredCollections.length === 0) && (
+          <div className="col-span-full py-20 text-center space-y-4">
+            <div className="w-20 h-20 bg-bg-secondary rounded-full flex items-center justify-center mx-auto text-gray-300">
+              <Package size={40} />
+            </div>
+            <p className="text-gray-400 font-bold">
+              {searchQuery ? 'No matches found.' : 'Start your first collection to begin hoarding.'}
+            </p>
           </div>
-        ))}
-
-        <button 
-          className="collection-card add-card" 
-          onClick={() => setEditingCollection('new')}
-        >
-          <div className="card-icon">
-            <Plus size={32} />
-          </div>
-          <div className="card-content">
-            <h2 className="font-bold">Add Collection</h2>
-            <p className="text-sm opacity-50">Create a new schema</p>
-          </div>
-        </button>
+        )}
       </div>
 
       {editingCollection && (

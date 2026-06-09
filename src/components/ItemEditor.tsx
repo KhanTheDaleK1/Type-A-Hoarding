@@ -242,37 +242,39 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase opacity-50 mb-1">Images (Local/URL)</label>
+            <label className="block text-xs font-bold uppercase opacity-50 mb-1">Images ({formData.images?.length || 0}/4)</label>
             <div className="flex gap-2 mb-2 overflow-x-auto pb-2">
               {formData.images?.map((img, i) => (
                 <div key={i} className="relative w-20 h-20 flex-shrink-0">
                   <img src={img} className="w-full h-full object-cover rounded-lg border border-border" alt="" />
                   <button 
                     onClick={() => setFormData({ ...formData, images: formData.images?.filter((_, idx) => idx !== i) })}
-                    className="absolute -top-1 -right-1 bg-danger text-white rounded-full p-1"
+                    className="absolute -top-1 -right-1 bg-danger text-white rounded-full p-1 shadow-lg"
                   >
                     <X size={12} />
                   </button>
                 </div>
               ))}
-              <label className="w-20 h-20 border-2 border-dashed border-border rounded-lg flex items-center justify-center cursor-pointer hover:border-accent">
-                <Plus size={24} />
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  className="hidden" 
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onloadend = () => {
-                        setFormData({ ...formData, images: [...(formData.images || []), reader.result as string] });
-                      };
-                      reader.readAsDataURL(file);
-                    }
-                  }}
-                />
-              </label>
+              {(formData.images?.length || 0) < 4 && (
+                <label className="w-20 h-20 border-2 border-dashed border-border rounded-lg flex items-center justify-center cursor-pointer hover:border-accent hover:bg-accent/5 transition-all">
+                  <Plus size={24} />
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setFormData({ ...formData, images: [...(formData.images || []), reader.result as string].slice(0, 4) });
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </label>
+              )}
             </div>
           </div>
             </div>
