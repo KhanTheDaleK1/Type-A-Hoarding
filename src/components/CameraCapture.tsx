@@ -60,14 +60,30 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose }) => 
       const video = videoRef.current;
       const canvas = canvasRef.current;
       
-      // Use natural video dimensions
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      // Target a maximum of 1200px on the longest side for storage efficiency
+      const MAX_DIM = 1200;
+      let width = video.videoWidth;
+      let height = video.videoHeight;
+
+      if (width > height) {
+        if (width > MAX_DIM) {
+          height = Math.round((height * MAX_DIM) / width);
+          width = MAX_DIM;
+        }
+      } else {
+        if (height > MAX_DIM) {
+          width = Math.round((width * MAX_DIM) / height);
+          height = MAX_DIM;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
       
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.7); // Compress slightly
+        ctx.drawImage(video, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8); // Reasonable quality
         onCapture(dataUrl);
         stopStream();
       }

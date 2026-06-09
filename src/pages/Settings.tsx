@@ -37,6 +37,12 @@ const Settings: React.FC = () => {
     localStorage.setItem('hoarding_api_keys', JSON.stringify(apiKeys));
   }, [apiKeys]);
 
+  const [excludeImages, setExcludeImages] = useState(() => localStorage.getItem('hoarding_exclude_images_backup') === 'true');
+
+  useEffect(() => {
+    localStorage.setItem('hoarding_exclude_images_backup', excludeImages ? 'true' : 'false');
+  }, [excludeImages]);
+
   const handleSaveConfig = () => {
     syncService.saveConfig(ghConfig);
     setSyncStatus({ type: 'success', msg: 'GitHub configuration saved locally.' });
@@ -276,6 +282,20 @@ const Settings: React.FC = () => {
                 />
               </div>
             </div>
+            <div className="flex items-center justify-between p-3 bg-bg rounded-xl border border-border">
+              <div className="space-y-0.5">
+                <span className="text-xs font-bold uppercase opacity-70">Include Images in Backup</span>
+                <p className="text-[9px] opacity-40 uppercase font-black leading-tight">Disable if sync fails or for faster, tiny backups.</p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setExcludeImages(!excludeImages)}
+                className={`w-12 h-6 rounded-full transition-all relative ${!excludeImages ? 'bg-success' : 'bg-border'}`}
+              >
+                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${!excludeImages ? 'left-7' : 'left-1'}`} />
+              </button>
+            </div>
+
             <div className="flex items-center gap-2 p-3 bg-accent/5 rounded-xl border border-accent/20">
               <RefreshCw size={14} className="text-accent animate-spin-slow" />
               <span className="text-[10px] font-bold uppercase tracking-widest text-accent">Background Auto-Sync Active</span>

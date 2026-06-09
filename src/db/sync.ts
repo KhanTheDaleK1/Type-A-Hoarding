@@ -7,6 +7,17 @@ export interface GitHubSyncConfig {
   path: string;
 }
 
+// Robust Base64 encoding for Unicode strings
+function toBase64(str: string) {
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
 export const syncService = {
   getConfig(): GitHubSyncConfig | null {
     const config = localStorage.getItem('hoarding_github_config');
@@ -22,9 +33,21 @@ export const syncService = {
     if (!config) throw new Error('GitHub sync not configured');
 
     const collections = await db.collections.toArray();
-    const items = await db.items.toArray();
+    let items = await db.items.toArray();
+
+    // Check if user wants to exclude images from backup to save space/bandwidth
+    const excludeImages = localStorage.getItem('hoarding_exclude_images_backup') === 'true';
+    if (excludeImages) {
+      items = items.map(item => ({ ...item, images: [] }));
+    }
+
     const content = JSON.stringify({ collections, items }, null, 2);
     
+    // GitHub Contents API has a 25MB limit
+    if (content.length > 25 * 1024 * 1024) {
+      throw new Error('Backup size too large (exceeds 25MB). Try removing some high-res images.');
+    }
+
     // 1. Get current file SHA (if it exists) to update it
     let sha: string | undefined;
     try {
@@ -52,7 +75,7 @@ export const syncService = {
       },
       body: JSON.stringify({
         message: `Sync: ${new Date().toISOString()}`,
-        content: btoa(unescape(encodeURIComponent(content))), // Handle Unicode characters correctly
+        content: toBase64(content),
         sha
       })
     });
@@ -83,7 +106,12 @@ export const syncService = {
     }
 
     const data = await res.json();
-    const content = decodeURIComponent(escape(atob(data.content)));
+    const binary = atob(data.content);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const content = new TextDecoder().decode(bytes);
     const parsed = JSON.parse(content);
 
     if (parsed.collections && parsed.items) {
