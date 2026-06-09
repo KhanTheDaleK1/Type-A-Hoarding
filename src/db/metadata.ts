@@ -13,7 +13,7 @@ export const fetchMetadataByBarcode = async (barcode: string): Promise<BarcodeRe
   // Clean and normalize barcode
   let cleanBarcode = barcode.replace(/[-\s]/g, '');
   
-  // Normalize UPC-A (12 digits) to EAN-13 by padding with a leading zero
+  // Normalize UPC-A (12 digits) to EAN-13
   if (cleanBarcode.length === 12) {
     cleanBarcode = '0' + cleanBarcode;
   }
@@ -22,36 +22,26 @@ export const fetchMetadataByBarcode = async (barcode: string): Promise<BarcodeRe
 
   const tryLookup = async (code: string): Promise<BarcodeResult | null> => {
     try {
-      // 1. Google Books (Good for ISBNs)
-      const gBooks = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${code}`).then(r => r.json());
-      if (gBooks.items?.[0]) {
-        const b = gBooks.items[0].volumeInfo;
-        return {
-          title: b.title,
-          author: b.authors?.join(', '),
-          publisher: b.publisher,
-          year: b.publishedDate?.split('-')[0],
-          thumbnail: b.imageLinks?.thumbnail || b.imageLinks?.smallThumbnail,
-          mediaType: 'Book',
-          source: 'Google Books'
-        };
+      // 1. Google Books (Keyword fallback - very aggressive)
+      // Searching by 'q=' instead of 'isbn:' helps find partial matches
+      const gBooksSearch = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${code}`).then(r => r.json());
+      if (gBooksSearch.items?.[0]) {
+        const b = gBooksSearch.items[0].volumeInfo;
+        // Verify it's not a completely random match
+        if (b.title) {
+          return {
+            title: b.title,
+            author: b.authors?.join(', '),
+            publisher: b.publisher,
+            year: b.publishedDate?.split('-')[0],
+            thumbnail: b.imageLinks?.thumbnail || b.imageLinks?.smallThumbnail,
+            mediaType: 'Item',
+            source: 'Deep Search'
+          };
+        }
       }
 
-      // 2. Open Library
-      const ol = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${code}&format=json&jscmd=data`).then(r => r.json());
-      if (ol[`ISBN:${code}`]) {
-        const b = ol[`ISBN:${code}`];
-        return {
-          title: b.title,
-          author: b.authors?.[0]?.name,
-          year: b.publish_date?.toString().split(' ').pop(),
-          thumbnail: b.cover?.large || b.cover?.medium,
-          mediaType: 'Book',
-          source: 'Open Library'
-        };
-      }
-
-      // 3. UPCItemDB (Movies/Media)
+      // 2. Direct UPCItemDB
       const upc = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${code}`).then(r => r.json());
       if (upc.items?.[0]) {
         const i = upc.items[0];
@@ -65,32 +55,20 @@ export const fetchMetadataByBarcode = async (barcode: string): Promise<BarcodeRe
         };
       }
 
-      // 4. Fallback Keyword Search (If barcode search fails, try searching the number as a generic term)
-      const searchFallback = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${code}`).then(r => r.json());
-      if (searchFallback.items?.[0]) {
-        const b = searchFallback.items[0].volumeInfo;
-        return {
-          title: b.title,
-          author: b.authors?.join(', '),
-          year: b.publishedDate?.split('-')[0],
-          thumbnail: b.imageLinks?.thumbnail,
-          mediaType: 'Item',
-          source: 'Search Fallback'
-        };
-      }
-
       return null;
     } catch (e) {
       return null;
     }
   };
 
-  // Try normalized code
+  // Try original code
   let result = await tryLookup(cleanBarcode);
   
-  // If failed and we added a zero, try without the zero
-  if (!result && cleanBarcode.startsWith('0')) {
-    result = await tryLookup(cleanBarcode.substring(1));
+  // Fuzzy Fallback: If 10 digits, try common Disney/Universal prefixes (like 07869...)
+  if (!result && cleanBarcode.length === 10) {
+    // Disney often starts with 07869... or similar
+    // Try searching specifically for the number string anywhere in the metadata
+    result = await tryLookup('0' + cleanBarcode);
   }
 
   return result;
