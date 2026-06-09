@@ -25,11 +25,9 @@ export const filterItems = (items: Item[], filters: FilterOptions): Item[] => {
     .filter(item => {
       const matchesSearch = item.title.toLowerCase().includes(filters.search.toLowerCase());
       const matchesRating = filters.rating === null || item.personalRating >= filters.rating;
-      const matchesLoaned = !filters.loanedOnly || item.loanedStatus;
-      const matchesLocation = filters.location === 'all' || item.storageLocation === filters.location;
       const matchesMediaType = filters.mediaType === 'all' || item.mediaType === filters.mediaType;
       
-      return matchesSearch && matchesRating && matchesLoaned && matchesLocation && matchesMediaType;
+      return matchesSearch && matchesRating && matchesMediaType;
     })
     .sort((a, b) => {
       let comparison = 0;
@@ -38,7 +36,7 @@ export const filterItems = (items: Item[], filters: FilterOptions): Item[] => {
           comparison = a.sortTitle.localeCompare(b.sortTitle);
           break;
         case 'dateAdded':
-          comparison = a.dateAdded - b.dateAdded;
+          comparison = b.dateAdded - a.dateAdded; // Newest first for date added
           break;
         case 'rating':
           comparison = b.personalRating - a.personalRating;
@@ -46,6 +44,8 @@ export const filterItems = (items: Item[], filters: FilterOptions): Item[] => {
         case 'value':
           comparison = (b.estimatedValue || 0) - (a.estimatedValue || 0);
           break;
+        default:
+          comparison = a.sortTitle.localeCompare(b.sortTitle);
       }
       return filters.sortOrder === 'asc' ? comparison : -comparison;
     });

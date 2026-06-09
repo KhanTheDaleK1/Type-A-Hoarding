@@ -199,16 +199,15 @@ const CollectionView: React.FC = () => {
               <div className="item-info">
                 <div className="flex justify-between items-start">
                   <h3 className="font-bold">{item.title}</h3>
-                  {item.loanedStatus && <span className="loaned-badge">Loaned</span>}
                 </div>
                 <p className="text-sm opacity-70">
-                  {item.storageLocation || 'No location'} • ⭐ {item.personalRating}
+                  {item.customData.year || 'Unknown'} • {item.customData.contentRating || 'NR'}
                 </p>
                 {viewMode === 'detailed' && item.notes && (
                   <p className="mt-2 text-sm italic line-clamp-2">{item.notes}</p>
                 )}
                 {viewMode === 'detailed' && item.mediaType && (
-                  <span className="mt-2 inline-block text-[10px] font-bold uppercase tracking-wider bg-border px-2 py-0.5 rounded">
+                  <span className="mt-2 inline-block text-[10px] font-bold uppercase tracking-wider bg-accent text-white px-2 py-0.5 rounded shadow-sm">
                     {item.mediaType}
                   </span>
                 )}

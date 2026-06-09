@@ -1,57 +1,129 @@
-import React from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
-import { ArrowLeft, Edit2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit2, Trash2, Calendar, Tag, ShieldCheck, PlayCircle } from 'lucide-react';
+import ItemEditor from '../components/ItemEditor';
 
 const ItemDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [showEditModal, setShowEditModal] = useState(false);
+  
   const item = useLiveQuery(() => db.items.get(id || ''));
+  const collection = useLiveQuery(() => item ? db.collections.get(item.collectionId) : null, [item]);
 
-  if (!item) return <div>Loading...</div>;
+  const handleDelete = async () => {
+    if (window.confirm('Are you sure you want to delete this item?')) {
+      await db.items.delete(id!);
+      navigate(`/collection/${item?.collectionId}`);
+    }
+  };
+
+  if (!item) return <div className="p-8 text-center animate-pulse">Loading item...</div>;
 
   return (
-    <div className="item-detail">
-      <header className="view-header">
-        <Link to={`/collection/${item.collectionId}`} className="icon-button">
-          <ArrowLeft size={24} />
-        </Link>
-        <h1>{item.title}</h1>
-        <div className="header-actions">
-          <button className="icon-button"><Edit2 size={24} /></button>
-          <button className="icon-button danger"><Trash2 size={24} /></button>
+    <div className="item-detail max-w-4xl mx-auto">
+      <header className="view-header sticky top-0 bg-bg/80 backdrop-blur-md z-10 py-4 mb-8 border-b border-border flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link to={`/collection/${item.collectionId}`} className="p-2 hover:bg-bg-secondary rounded-full transition-colors">
+            <ArrowLeft size={24} />
+          </Link>
+          <h1 className="text-xl font-black tracking-tight">{item.title}</h1>
+        </div>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setShowEditModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-bg-secondary hover:bg-border rounded-xl font-bold text-sm transition-all"
+          >
+            <Edit2 size={16} /> Edit
+          </button>
+          <button 
+            onClick={handleDelete}
+            className="flex items-center gap-2 px-4 py-2 bg-danger/10 hover:bg-danger text-danger hover:text-white rounded-xl font-bold text-sm transition-all"
+          >
+            <Trash2 size={16} /> Delete
+          </button>
         </div>
       </header>
 
-      <div className="detail-content">
-        <div className="image-gallery">
-          {item.images.map((img, i) => (
-            <img key={i} src={img} alt={`View ${i + 1}`} />
-          ))}
-          {item.images.length === 0 && <div className="placeholder-large" />}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-4">
+        <div className="space-y-4">
+          <div className="aspect-[2/3] w-full rounded-2xl overflow-hidden bg-bg-secondary border border-border shadow-xl group relative">
+            {item.images[0] ? (
+              <img src={item.images[0]} className="w-full h-full object-cover" alt={item.title} />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-4">
+                <PlayCircle size={64} className="opacity-20" />
+                <span className="text-xs font-bold uppercase tracking-widest opacity-40">No Cover Art</span>
+              </div>
+            )}
+            {item.mediaType && (
+              <div className="absolute bottom-4 left-4 px-3 py-1 bg-accent text-white rounded-lg font-black text-xs uppercase shadow-lg">
+                {item.mediaType}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="metadata-section">
-          <div className="meta-row">
-            <span className="label">Location</span>
-            <span className="value">{item.storageLocation || 'Not set'}</span>
-          </div>
-          <div className="meta-row">
-            <span className="label">Rating</span>
-            <span className="value">{item.personalRating}/5</span>
-          </div>
-          <div className="meta-row">
-            <span className="label">Status</span>
-            <span className="value">{item.loanedStatus ? `Loaned to ${item.loanedTo}` : 'In Stock'}</span>
-          </div>
-          {item.notes && (
-            <div className="notes-section">
-              <h3>Notes</h3>
-              <p>{item.notes}</p>
+        <div className="space-y-8">
+          <section className="space-y-4">
+            <h2 className="text-sm font-black uppercase tracking-[0.2em] text-accent opacity-80 border-b border-border pb-2">Movie Details</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
+                <div className="flex items-center gap-2 text-gray-500 mb-1">
+                  <Calendar size={14} />
+                  <span className="text-[10px] font-black uppercase tracking-wider">Year</span>
+                </div>
+                <div className="text-lg font-black">{item.customData.year || 'Unknown'}</div>
+              </div>
+              <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
+                <div className="flex items-center gap-2 text-gray-500 mb-1">
+                  <ShieldCheck size={14} />
+                  <span className="text-[10px] font-black uppercase tracking-wider">Rating</span>
+                </div>
+                <div className="text-lg font-black">{item.customData.contentRating || 'NR'}</div>
+              </div>
+              <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
+                <div className="flex items-center gap-2 text-gray-500 mb-1">
+                  <Tag size={14} />
+                  <span className="text-[10px] font-black uppercase tracking-wider">Format</span>
+                </div>
+                <div className="text-lg font-black">{item.mediaType || 'N/A'}</div>
+              </div>
+              <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
+                <div className="flex items-center gap-2 text-gray-500 mb-1">
+                  <Calendar size={14} />
+                  <span className="text-[10px] font-black uppercase tracking-wider">Watched</span>
+                </div>
+                <div className="text-sm font-bold">{item.customData.dateWatched || 'Never'}</div>
+              </div>
             </div>
+          </section>
+
+          {item.notes && (
+            <section className="space-y-4">
+              <h2 className="text-sm font-black uppercase tracking-[0.2em] text-accent opacity-80 border-b border-border pb-2">Notes & Summary</h2>
+              <p className="text-sm leading-relaxed opacity-80 bg-bg-secondary p-4 rounded-2xl border border-border whitespace-pre-wrap">
+                {item.notes}
+              </p>
+            </section>
           )}
+
+          <div className="pt-8 border-t border-border flex justify-between items-center text-[10px] font-black uppercase tracking-widest opacity-30">
+            <span>Added {new Date(item.dateAdded).toLocaleDateString()}</span>
+            <span>ID: {item.id.slice(0, 8)}</span>
+          </div>
         </div>
       </div>
+
+      {showEditModal && collection && (
+        <ItemEditor 
+          collection={collection}
+          item={item}
+          onClose={() => setShowEditModal(false)}
+        />
+      )}
     </div>
   );
 };

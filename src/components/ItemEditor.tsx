@@ -138,23 +138,17 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-bold uppercase opacity-50 mb-1">Media Type</label>
-                  <input 
-                    type="text" 
-                    placeholder="e.g. Blu-ray"
-                    className="w-full rounded-lg border border-border bg-bg-secondary p-2 text-sm outline-none"
-                    value={formData.mediaType}
-                    onChange={e => setFormData({ ...formData, mediaType: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase opacity-50 mb-1">Location</label>
-                  <input 
-                    type="text" 
-                    placeholder="Shelf A"
-                    className="w-full rounded-lg border border-border bg-bg-secondary p-2 text-sm outline-none"
-                    value={formData.storageLocation}
-                    onChange={e => setFormData({ ...formData, storageLocation: e.target.value })}
-                  />
+                  <div className="flex flex-wrap gap-1">
+                    {['DVD', 'VHS', 'Blu-ray', '4K', 'Digital'].map(type => (
+                      <button 
+                        key={type}
+                        onClick={() => setFormData({ ...formData, mediaType: type })}
+                        className={`px-2 py-1 text-[10px] font-bold rounded border ${formData.mediaType === type ? 'bg-accent text-white border-accent' : 'bg-bg-secondary border-border opacity-60'}`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -177,41 +171,6 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
                     onChange={e => setFormData({ ...formData, estimatedValue: parseFloat(e.target.value) })}
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase opacity-50 mb-1">Rating</label>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map(star => (
-                    <button 
-                      key={star}
-                      onClick={() => setFormData({ ...formData, personalRating: star })}
-                      className={`p-1 ${formData.personalRating! >= star ? 'text-amber-400' : 'text-gray-300'}`}
-                    >
-                      <Star size={24} fill={formData.personalRating! >= star ? 'currentColor' : 'none'} />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4 p-3 bg-bg-secondary rounded-lg border border-border">
-                <input 
-                  type="checkbox" 
-                  id="loaned"
-                  className="w-5 h-5 accent-accent"
-                  checked={formData.loanedStatus}
-                  onChange={e => setFormData({ ...formData, loanedStatus: e.target.checked })}
-                />
-                <label htmlFor="loaned" className="text-sm font-bold">Currently Loaned Out</label>
-                {formData.loanedStatus && (
-                  <input 
-                    type="text"
-                    placeholder="Who has it?"
-                    className="flex-grow bg-bg border border-border rounded p-1 text-xs outline-none"
-                    value={formData.loanedTo || ''}
-                    onChange={e => setFormData({ ...formData, loanedTo: e.target.value })}
-                  />
-                )}
               </div>
             </div>
 
