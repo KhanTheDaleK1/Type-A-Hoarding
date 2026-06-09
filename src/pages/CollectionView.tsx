@@ -130,10 +130,10 @@ const CollectionView: React.FC = () => {
             <Filter size={24} />
           </button>
           <button 
-            className="icon-button accent"
+            className="icon-button accent w-14 h-14 flex items-center justify-center rounded-2xl shadow-xl active:scale-95 transition-transform"
             onClick={() => setShowAddModal(true)}
           >
-            <Plus size={24} />
+            <Plus size={32} />
           </button>
         </div>
       </header>
