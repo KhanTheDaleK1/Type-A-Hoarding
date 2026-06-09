@@ -23,56 +23,60 @@ export const seedDatabase = async () => {
   const movieCollId = 'sample-movies';
   const bookCollId = 'sample-books';
 
-  await db.collections.bulkAdd([
-    {
-      id: movieCollId,
-      name: 'Favorite Movies',
-      type: 'Movies',
-      createdAt: Date.now(),
-      customFields: [
-        { id: 'director', name: 'Director', type: 'text' },
-        { id: 'runtime', name: 'Runtime (min)', type: 'number' }
-      ]
-    },
-    {
-      id: bookCollId,
-      name: 'To Read List',
-      type: 'Books',
-      createdAt: Date.now(),
-      customFields: [
-        { id: 'author', name: 'Author', type: 'text' },
-        { id: 'isbn', name: 'ISBN', type: 'text' }
-      ]
-    }
-  ]);
+  try {
+    await db.collections.bulkPut([
+      {
+        id: movieCollId,
+        name: 'Favorite Movies',
+        type: 'Movies',
+        createdAt: Date.now(),
+        customFields: [
+          { id: 'director', name: 'Director', type: 'text' },
+          { id: 'runtime', name: 'Runtime (min)', type: 'number' }
+        ]
+      },
+      {
+        id: bookCollId,
+        name: 'To Read List',
+        type: 'Books',
+        createdAt: Date.now(),
+        customFields: [
+          { id: 'author', name: 'Author', type: 'text' },
+          { id: 'isbn', name: 'ISBN', type: 'text' }
+        ]
+      }
+    ]);
 
-  await db.items.bulkAdd([
-    {
-      id: 'item-1',
-      collectionId: movieCollId,
-      title: 'The Matrix',
-      sortTitle: 'Matrix, The',
-      mediaType: '4K Blu-ray',
-      images: [],
-      loanedStatus: false,
-      dateAdded: Date.now(),
-      personalRating: 5,
-      storageLocation: 'Living Room Shelf',
-      customData: { director: 'Wachowskis', runtime: 136 }
-    },
-    {
-      id: 'item-2',
-      collectionId: bookCollId,
-      title: 'Neuromancer',
-      sortTitle: 'Neuromancer',
-      mediaType: 'Paperback',
-      images: [],
-      loanedStatus: true,
-      loanedTo: 'Alice',
-      dateAdded: Date.now(),
-      personalRating: 4,
-      storageLocation: 'Office',
-      customData: { author: 'William Gibson', isbn: '978-0441569595' }
-    }
-  ]);
+    await db.items.bulkPut([
+      {
+        id: 'item-1',
+        collectionId: movieCollId,
+        title: 'The Matrix',
+        sortTitle: 'Matrix, The',
+        mediaType: '4K Blu-ray',
+        images: [],
+        loanedStatus: false,
+        dateAdded: Date.now(),
+        personalRating: 5,
+        storageLocation: 'Living Room Shelf',
+        customData: { director: 'Wachowskis', runtime: 136 }
+      },
+      {
+        id: 'item-2',
+        collectionId: bookCollId,
+        title: 'Neuromancer',
+        sortTitle: 'Neuromancer',
+        mediaType: 'Paperback',
+        images: [],
+        loanedStatus: true,
+        loanedTo: 'Alice',
+        dateAdded: Date.now(),
+        personalRating: 4,
+        storageLocation: 'Office',
+        customData: { author: 'William Gibson', isbn: '978-0441569595' }
+      }
+    ]);
+  } catch (error) {
+    console.warn('Seed data already exists or failed to insert:', error);
+  }
 };

@@ -17,7 +17,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 function AppContent() {
   useEffect(() => {
-    seedDatabase();
+    seedDatabase().catch(err => {
+      console.error('Database seeding failed:', err);
+    });
   }, []);
 
   return (
