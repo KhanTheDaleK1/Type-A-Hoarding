@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
-  Box, ArrowRight, ShieldCheck, Github, 
+  Box, ArrowRight, ShieldCheck, Cloud, 
   ChevronLeft, ChevronRight, Mail, Lock, User
 } from 'lucide-react';
 
@@ -233,7 +233,7 @@ const LoginPage: React.FC = () => {
         <div className="mt-12 flex flex-col sm:flex-row items-center justify-between text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-600 gap-4 pt-8 border-t border-zinc-100 dark:border-zinc-900/80">
           <div>&copy; 2026 Type-A Hoarding. All rights reserved.</div>
           <div className="flex gap-6">
-             <a href="#" className="flex items-center gap-2 hover:text-accent transition-colors"><Github size={12} /> Source Control</a>
+             <a href="#" className="flex items-center gap-2 hover:text-accent transition-colors"><Cloud size={12} /> Source Control</a>
              <a href="#" className="hover:text-accent transition-colors">Legal Archive</a>
           </div>
         </div>
