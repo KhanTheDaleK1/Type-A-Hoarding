@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LogIn, UserPlus, ShieldCheck, Box, Github } from 'lucide-react';
+import { LogIn, UserPlus, ShieldCheck, Box, Cloud } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -49,7 +49,7 @@ const LoginPage: React.FC = () => {
               <ShieldCheck size={16} /> Private & Secure
             </div>
             <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest opacity-60">
-              <Github size={16} /> GitHub Synced
+              <Cloud size={16} /> GitHub Synced
             </div>
           </div>
         </div>
