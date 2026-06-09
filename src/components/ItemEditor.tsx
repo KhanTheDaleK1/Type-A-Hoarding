@@ -26,17 +26,44 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
     images: []
   });
 
+  const [scanStatus, setScanStatus] = useState<string | undefined>();
+
   const handleScan = async (barcode: string) => {
-    setShowScanner(false);
+    if (scanStatus) return; // Prevent double scans
+    
+    setScanStatus('Searching...');
     const metadata = await fetchMetadataByBarcode(barcode);
+    
     if (metadata) {
-      setFormData(prev => ({
-        ...prev,
-        title: metadata.title || prev.title,
-        mediaType: metadata.mediaType || prev.mediaType,
-        images: metadata.thumbnail ? [metadata.thumbnail] : prev.images,
-        notes: metadata.author ? `Author: ${metadata.author}\n${prev.notes || ''}` : prev.notes
-      }));
+      setScanStatus(`Found: ${metadata.title}`);
+      
+      const newItem: Item = {
+        id: crypto.randomUUID(),
+        collectionId: collection.id,
+        title: metadata.title,
+        sortTitle: metadata.title.replace(/^(The|A|An)\s+/i, '') + ', ' + (metadata.title.match(/^(The|A|An)\s+/i)?.[0].trim() || ''),
+        mediaType: metadata.mediaType || collection.type,
+        images: metadata.thumbnail ? [metadata.thumbnail] : [],
+        dateAdded: Date.now(),
+        personalRating: 5,
+        loanedStatus: false,
+        notes: metadata.description || `Fetched from ${metadata.source}`,
+        customData: {
+          author: metadata.author,
+          publisher: metadata.publisher,
+          year: metadata.year
+        }
+      };
+
+      await db.items.add(newItem);
+      
+      // Success feedback
+      setTimeout(() => {
+        setScanStatus(undefined);
+      }, 2000);
+    } else {
+      setScanStatus('Not Found. Try again?');
+      setTimeout(() => setScanStatus(undefined), 2000);
     }
   };
 
@@ -302,7 +329,13 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
         </div>
       </div>
 
-      {showScanner && <Scanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
+      {showScanner && (
+        <Scanner 
+          onScan={handleScan} 
+          onClose={() => setShowScanner(false)} 
+          status={scanStatus}
+        />
+      )}
     </div>
   );
 };
