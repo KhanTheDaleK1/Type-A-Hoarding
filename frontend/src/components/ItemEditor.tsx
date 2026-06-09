@@ -1,0 +1,310 @@
+import React, { useState } from 'react';
+import type { Collection, Item } from '../types';
+import { db } from '../db/db';
+import { X, Camera, Save, Star, Plus } from 'lucide-react';
+import Scanner from './Scanner';
+import { fetchMetadataByBarcode } from '../db/metadata';
+
+interface ItemEditorProps {
+  collection: Collection;
+  item?: Item; // If provided, we are editing
+  onClose: () => void;
+}
+
+const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) => {
+  const [showScanner, setShowScanner] = useState(false);
+  const [formData, setFormData] = useState<Partial<Item>>(item || {
+    collectionId: collection.id,
+    title: '',
+    mediaType: '',
+    storageLocation: '',
+    personalRating: 5,
+    loanedStatus: false,
+    notes: '',
+    estimatedValue: 0,
+    customData: {},
+    images: []
+  });
+
+  const handleScan = async (barcode: string) => {
+    setShowScanner(false);
+    const metadata = await fetchMetadataByBarcode(barcode);
+    if (metadata) {
+      setFormData(prev => ({
+        ...prev,
+        title: metadata.title || prev.title,
+        mediaType: metadata.mediaType || prev.mediaType,
+        images: metadata.thumbnail ? [metadata.thumbnail] : prev.images,
+        notes: metadata.author ? `Author: ${metadata.author}\n${prev.notes || ''}` : prev.notes
+      }));
+    }
+  };
+
+  const handleSave = async () => {
+    if (!formData.title) return alert('Title is required');
+    
+    const itemData: Item = {
+      id: item?.id || crypto.randomUUID(),
+      collectionId: collection.id,
+      title: formData.title!,
+      sortTitle: formData.title!.replace(/^(The|A|An)\s+/i, '') + ', ' + (formData.title!.match(/^(The|A|An)\s+/i)?.[0].trim() || ''),
+      mediaType: formData.mediaType,
+      images: formData.images || [],
+      loanedStatus: formData.loanedStatus || false,
+      loanedTo: formData.loanedTo,
+      dateAdded: item?.dateAdded || Date.now(),
+      personalRating: formData.personalRating || 5,
+      storageLocation: formData.storageLocation,
+      notes: formData.notes,
+      estimatedValue: formData.estimatedValue || 0,
+      purchasePrice: formData.purchasePrice,
+      purchaseDate: formData.purchaseDate,
+      customData: formData.customData || {}
+    };
+
+    if (item) {
+      await db.items.put(itemData);
+    } else {
+      await db.items.add(itemData);
+    }
+    onClose();
+  };
+
+  const updateCustomData = (fieldId: string, value: any) => {
+    setFormData({
+      ...formData,
+      customData: { ...formData.customData, [fieldId]: value }
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-2xl rounded-2xl bg-bg p-6 shadow-2xl overflow-y-auto max-h-[90vh] border border-border">
+        <header className="mb-6 flex items-center justify-between">
+          <h2 className="text-2xl font-bold">{item ? 'Edit' : 'Add'} Item</h2>
+          <button onClick={onClose} className="icon-button"><X size={24} /></button>
+        </header>
+
+        <div className="space-y-6">
+          {!item && (
+            <button 
+              onClick={() => setShowScanner(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent p-4 text-white font-bold hover:bg-accent-hover transition-all"
+            >
+              <Camera size={20} />
+              Scan Barcode to Auto-Fill
+            </button>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase opacity-50 mb-1">Title</label>
+                <input 
+                  type="text" 
+                  className="w-full rounded-lg border border-border bg-bg-secondary p-2 outline-none focus:border-accent"
+                  value={formData.title}
+                  onChange={e => setFormData({ ...formData, title: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold uppercase opacity-50 mb-1">Media Type</label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Blu-ray"
+                    className="w-full rounded-lg border border-border bg-bg-secondary p-2 text-sm outline-none"
+                    value={formData.mediaType}
+                    onChange={e => setFormData({ ...formData, mediaType: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase opacity-50 mb-1">Location</label>
+                  <input 
+                    type="text" 
+                    placeholder="Shelf A"
+                    className="w-full rounded-lg border border-border bg-bg-secondary p-2 text-sm outline-none"
+                    value={formData.storageLocation}
+                    onChange={e => setFormData({ ...formData, storageLocation: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold uppercase opacity-50 mb-1">Purchase Price</label>
+                  <input 
+                    type="number" 
+                    className="w-full rounded-lg border border-border bg-bg-secondary p-2 text-sm outline-none"
+                    value={formData.purchasePrice || ''}
+                    onChange={e => setFormData({ ...formData, purchasePrice: parseFloat(e.target.value) })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase opacity-50 mb-1">Est. Value</label>
+                  <input 
+                    type="number" 
+                    className="w-full rounded-lg border border-border bg-bg-secondary p-2 text-sm outline-none"
+                    value={formData.estimatedValue || ''}
+                    onChange={e => setFormData({ ...formData, estimatedValue: parseFloat(e.target.value) })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase opacity-50 mb-1">Rating</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button 
+                      key={star}
+                      onClick={() => setFormData({ ...formData, personalRating: star })}
+                      className={`p-1 ${formData.personalRating! >= star ? 'text-amber-400' : 'text-gray-300'}`}
+                    >
+                      <Star size={24} fill={formData.personalRating! >= star ? 'currentColor' : 'none'} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 p-3 bg-bg-secondary rounded-lg border border-border">
+                <input 
+                  type="checkbox" 
+                  id="loaned"
+                  className="w-5 h-5 accent-accent"
+                  checked={formData.loanedStatus}
+                  onChange={e => setFormData({ ...formData, loanedStatus: e.target.checked })}
+                />
+                <label htmlFor="loaned" className="text-sm font-bold">Currently Loaned Out</label>
+                {formData.loanedStatus && (
+                  <input 
+                    type="text"
+                    placeholder="Who has it?"
+                    className="flex-grow bg-bg border border-border rounded p-1 text-xs outline-none"
+                    value={formData.loanedTo || ''}
+                    onChange={e => setFormData({ ...formData, loanedTo: e.target.value })}
+                  />
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold uppercase tracking-widest opacity-50 border-b border-border pb-1">
+                Custom Fields ({collection.type})
+              </h3>
+              
+              <div className="space-y-3">
+                {collection.customFields.map(field => (
+                  <div key={field.id}>
+                    <label className="block text-xs font-bold opacity-70 mb-1">{field.name}</label>
+                    {field.type === 'text' && (
+                      <input 
+                        type="text" 
+                        className="w-full rounded-lg border border-border bg-bg-secondary p-2 text-sm outline-none"
+                        value={formData.customData?.[field.id] || ''}
+                        onChange={e => updateCustomData(field.id, e.target.value)}
+                      />
+                    )}
+                    {field.type === 'number' && (
+                      <input 
+                        type="number" 
+                        className="w-full rounded-lg border border-border bg-bg-secondary p-2 text-sm outline-none"
+                        value={formData.customData?.[field.id] || ''}
+                        onChange={e => updateCustomData(field.id, parseFloat(e.target.value))}
+                      />
+                    )}
+                    {field.type === 'boolean' && (
+                      <input 
+                        type="checkbox" 
+                        className="w-5 h-5 accent-accent"
+                        checked={formData.customData?.[field.id] || false}
+                        onChange={e => updateCustomData(field.id, e.target.checked)}
+                      />
+                    )}
+                    {field.type === 'select' && (
+                      <select 
+                        className="w-full rounded-lg border border-border bg-bg-secondary p-2 text-sm outline-none"
+                        value={formData.customData?.[field.id] || ''}
+                        onChange={e => updateCustomData(field.id, e.target.value)}
+                      >
+                        <option value="">Select...</option>
+                        {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                      </select>
+                    )}
+                    {field.type === 'date' && (
+                      <input 
+                        type="date" 
+                        className="w-full rounded-lg border border-border bg-bg-secondary p-2 text-sm outline-none"
+                        value={formData.customData?.[field.id] || ''}
+                        onChange={e => updateCustomData(field.id, e.target.value)}
+                      />
+                    )}
+                  </div>
+                ))}
+                {collection.customFields.length === 0 && (
+                  <p className="text-xs opacity-40 italic">No custom fields defined for this collection.</p>
+                )}
+              </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase opacity-50 mb-1">General Notes</label>
+            <textarea 
+              className="w-full rounded-lg border border-border bg-bg-secondary p-2 text-sm h-32 outline-none"
+              value={formData.notes}
+              onChange={e => setFormData({ ...formData, notes: e.target.value })}
+            ></textarea>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase opacity-50 mb-1">Images (Local/URL)</label>
+            <div className="flex gap-2 mb-2 overflow-x-auto pb-2">
+              {formData.images?.map((img, i) => (
+                <div key={i} className="relative w-20 h-20 flex-shrink-0">
+                  <img src={img} className="w-full h-full object-cover rounded-lg border border-border" alt="" />
+                  <button 
+                    onClick={() => setFormData({ ...formData, images: formData.images?.filter((_, idx) => idx !== i) })}
+                    className="absolute -top-1 -right-1 bg-danger text-white rounded-full p-1"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+              <label className="w-20 h-20 border-2 border-dashed border-border rounded-lg flex items-center justify-center cursor-pointer hover:border-accent">
+                <Plus size={24} />
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setFormData({ ...formData, images: [...(formData.images || []), reader.result as string] });
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+              </label>
+            </div>
+          </div>
+            </div>
+          </div>
+
+          <button 
+            onClick={handleSave}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-success p-4 text-white font-bold hover:opacity-90 transition-all shadow-lg"
+          >
+            <Save size={20} />
+            Save Item to Collection
+          </button>
+        </div>
+      </div>
+
+      {showScanner && <Scanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
+    </div>
+  );
+};
+
+export default ItemEditor;
