@@ -329,30 +329,63 @@ const Settings: React.FC = () => {
         </section>
 
         <section>
-          <h2 className="text-sm font-bold uppercase tracking-widest opacity-50 mb-4">Local Data</h2>
-          <div className="settings-list">
-            <button className="settings-item" onClick={exportData}>
-              <Download size={20} />
-              <span>Export Database (JSON)</span>
-            </button>
-            <label className="settings-item cursor-pointer">
-              <Upload size={20} />
-              <span>Import Database (JSON)</span>
-              <input type="file" accept=".json" className="hidden" onChange={importData} />
-            </label>
-            <label className="settings-item cursor-pointer">
-              <BookOpen size={20} className="text-accent" />
-              <span>Import Goodreads (CSV)</span>
-              <input type="file" accept=".csv" className="hidden" onChange={handleGoodreadsImport} />
-            </label>
-            <button className="settings-item danger" onClick={clearAll}>
-              <Trash2 size={20} />
-              <span>Clear All Local Data</span>
-            </button>
-            <button className="settings-item" onClick={logout}>
-              <LogOut size={20} />
-              <span>Log Out</span>
-            </button>
+          <h2 className="text-sm font-bold uppercase tracking-widest opacity-50 mb-4">Data Management</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-bg-secondary p-6 rounded-3xl border border-border space-y-4">
+              <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40">Import & Export</h3>
+              <div className="space-y-2">
+                <button 
+                  onClick={exportData}
+                  className="w-full flex items-center gap-3 p-3 bg-bg hover:bg-accent/5 border border-border rounded-2xl transition-all group"
+                >
+                  <div className="p-2 bg-accent/10 rounded-xl text-accent group-hover:bg-accent group-hover:text-white transition-colors">
+                    <Download size={18} />
+                  </div>
+                  <span className="text-sm font-bold">Export JSON</span>
+                </button>
+                
+                <label className="w-full flex items-center gap-3 p-3 bg-bg hover:bg-accent/5 border border-border rounded-2xl transition-all group cursor-pointer">
+                  <div className="p-2 bg-accent/10 rounded-xl text-accent group-hover:bg-accent group-hover:text-white transition-colors">
+                    <Upload size={18} />
+                  </div>
+                  <span className="text-sm font-bold">Import JSON</span>
+                  <input type="file" accept=".json" className="hidden" onChange={importData} />
+                </label>
+
+                <label className="w-full flex items-center gap-3 p-3 bg-bg hover:bg-accent/5 border border-border rounded-2xl transition-all group cursor-pointer">
+                  <div className="p-2 bg-accent/10 rounded-xl text-accent group-hover:bg-accent group-hover:text-white transition-colors">
+                    <BookOpen size={18} />
+                  </div>
+                  <span className="text-sm font-bold">Goodreads CSV</span>
+                  <input type="file" accept=".csv" className="hidden" onChange={handleGoodreadsImport} />
+                </label>
+              </div>
+            </div>
+
+            <div className="bg-bg-secondary p-6 rounded-3xl border border-border space-y-4">
+              <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40">Account & Safety</h3>
+              <div className="space-y-2">
+                <button 
+                  onClick={logout}
+                  className="w-full flex items-center gap-3 p-3 bg-bg hover:bg-bg-secondary border border-border rounded-2xl transition-all group"
+                >
+                  <div className="p-2 bg-gray-500/10 rounded-xl text-gray-500 group-hover:bg-gray-500 group-hover:text-white transition-colors">
+                    <LogOut size={18} />
+                  </div>
+                  <span className="text-sm font-bold">Log Out</span>
+                </button>
+
+                <button 
+                  onClick={clearAll}
+                  className="w-full flex items-center gap-3 p-3 bg-bg hover:bg-danger/5 border border-border rounded-2xl transition-all group"
+                >
+                  <div className="p-2 bg-danger/10 rounded-xl text-danger group-hover:bg-danger group-hover:text-white transition-colors">
+                    <Trash2 size={18} />
+                  </div>
+                  <span className="text-sm font-bold text-danger">Wipe Local Data</span>
+                </button>
+              </div>
+            </div>
           </div>
         </section>
 
