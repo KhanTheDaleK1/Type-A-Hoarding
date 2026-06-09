@@ -11,7 +11,10 @@ export const importGoodreadsCSV = async (file: File, collectionId: string) => {
       complete: async (results) => {
         try {
           const books = results.data as any[];
-          const items: Item[] = [];
+          const itemsToSave: Item[] = [];
+          
+          // Get all existing books in this collection to check for duplicates
+          const existingItems = await db.items.where('collectionId').equals(collectionId).toArray();
 
           for (const book of books) {
             const title = book['Title'] || 'Unknown Title';
@@ -20,16 +23,22 @@ export const importGoodreadsCSV = async (file: File, collectionId: string) => {
             const rating = parseInt(book['My Rating']) || 0;
             const dateRead = book['Date Read'];
             
-            const newItem: Item = {
-              id: crypto.randomUUID(),
+            // Look for existing item by ISBN or Title+Author
+            const existing = existingItems.find(i => 
+              (isbn && i.customData.isbn === isbn) || 
+              (i.title.toLowerCase() === title.toLowerCase() && i.customData.author?.toLowerCase() === author.toLowerCase())
+            );
+
+            const itemData: Item = {
+              id: existing?.id || crypto.randomUUID(),
               collectionId: collectionId,
               title: title,
               sortTitle: title.replace(/^(The|A|An)\s+/i, '') + ', ' + (title.match(/^(The|A|An)\s+/i)?.[0].trim() || ''),
               mediaType: 'Book',
-              images: [], // Will attempt to fetch below
+              images: existing?.images || [], // Preserve existing images if we have them
               watched: !!dateRead,
-              loanedStatus: false,
-              dateAdded: Date.now(),
+              loanedStatus: existing?.loanedStatus || false,
+              dateAdded: existing?.dateAdded || Date.now(),
               personalRating: rating,
               customData: {
                 author: author,
@@ -38,17 +47,16 @@ export const importGoodreadsCSV = async (file: File, collectionId: string) => {
                 year: book['Year Published'] || book['Original Publication Year']
               }
             };
-            items.push(newItem);
+            itemsToSave.push(itemData);
           }
 
-          // Add to DB
-          await db.items.bulkAdd(items);
+          // bulkPut handles both inserting new items and updating existing ones by ID
+          await db.items.bulkPut(itemsToSave);
 
-          // Background task: Try to fetch images for books with ISBNs
-          // We do this after resolving so the user isn't waiting for 100+ API calls
-          fetchImagesInBackground(items.filter(i => i.customData.isbn));
+          // Background task: Try to fetch images for books with ISBNs that don't have images yet
+          fetchImagesInBackground(itemsToSave.filter(i => i.customData.isbn && i.images.length === 0));
 
-          resolve(items.length);
+          resolve(itemsToSave.length);
         } catch (err) {
           reject(err);
         }
