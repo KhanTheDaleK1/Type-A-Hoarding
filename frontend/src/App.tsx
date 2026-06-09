@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import CollectionView from './pages/CollectionView'
 import ItemDetail from './pages/ItemDetail'
@@ -34,7 +34,7 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <Router basename="/Type-A-Hoarding">
+      <Router>
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
           <main className="container mx-auto px-4 py-8">
             <AppContent />
