@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { 
   ArrowLeft, Plus, Search, Filter, X, 
-  LayoutList, Grid, List, Shuffle, Share2
+  LayoutList, Grid, List, Shuffle, Share2, Menu
 } from 'lucide-react';
 import { initialFilters, filterItems } from '../hooks/useFilters';
 import type { FilterOptions } from '../hooks/useFilters';
@@ -21,6 +21,7 @@ const CollectionView: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showWheel, setShowWheel] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [filters, setFilters] = useState<FilterOptions>(initialFilters);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     return (localStorage.getItem('hoarding_view_mode') as ViewMode) || 'detailed';
@@ -102,72 +103,97 @@ const CollectionView: React.FC = () => {
 
   return (
     <div className="collection-view pb-20">
-      <header className="view-header">
-        <div className="flex items-center gap-4">
+      <header className="view-header sticky top-0 bg-bg/80 backdrop-blur-md z-[60] border-b border-border py-4 px-4 mb-6">
+        <div className="flex items-center gap-3">
           <Link to="/" className="icon-button">
             <ArrowLeft size={24} />
           </Link>
-          <div>
-            <h1 className="text-xl font-bold">{collection.name}</h1>
-            <p className="text-sm opacity-60">{filteredItems.length} items</p>
+          <div className="overflow-hidden">
+            <h1 className="text-lg font-black truncate">{collection.name}</h1>
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-40">{filteredItems.length} items</p>
           </div>
         </div>
         
         <div className="header-actions">
-          <button 
-            className="icon-button"
-            onClick={() => setShowShare(true)}
-            title="Share Collection"
-          >
-            <Share2 size={20} />
-          </button>
-          <button 
-            className={`icon-button ${showWheel ? 'accent' : ''}`}
-            onClick={() => collection.type === 'Movies' ? setShowWheel(true) : pickRandomItem()}
-            title="Random Pick"
-          >
-            <Shuffle size={20} />
-          </button>
-          <div className="flex bg-bg-secondary rounded-lg p-1">
-            <button 
-              className={`icon-button !min-w-[40px] !min-height-[40px] ${viewMode === 'compact' ? 'accent' : ''}`}
-              onClick={() => setViewMode('compact')}
-            >
-              <List size={18} />
-            </button>
-            <button 
-              className={`icon-button !min-w-[40px] !min-height-[40px] ${viewMode === 'grid' ? 'accent' : ''}`}
-              onClick={() => setViewMode('grid')}
-            >
-              <Grid size={18} />
-            </button>
-            <button 
-              className={`icon-button !min-w-[40px] !min-height-[40px] ${viewMode === 'detailed' ? 'accent' : ''}`}
-              onClick={() => setViewMode('detailed')}
-            >
-              <LayoutList size={18} />
-            </button>
-          </div>
-          <button 
-            className={`icon-button ${showFilters ? 'accent' : ''}`} 
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <Filter size={20} />
-          </button>
           <button 
             className="icon-button accent shadow-xl"
             onClick={() => setShowAddModal(true)}
           >
             <Plus size={28} />
           </button>
+          <button 
+            className={`icon-button ${showMenu ? 'bg-bg-secondary shadow-inner' : ''}`}
+            onClick={() => setShowMenu(!showMenu)}
+          >
+            <Menu size={24} />
+          </button>
         </div>
       </header>
 
+      {/* Hamburger Menu Overlay */}
+      {showMenu && (
+        <div className="fixed inset-0 z-[100] animate-in fade-in duration-200">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowMenu(false)} />
+          <div className="absolute top-20 right-4 w-64 bg-bg border border-border rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-top-4 zoom-in-95 duration-200">
+             <div className="p-2 space-y-1">
+                <button 
+                  className="w-full flex items-center gap-4 px-4 py-4 hover:bg-bg-secondary rounded-2xl transition-colors font-bold text-sm"
+                  onClick={() => { setShowFilters(!showFilters); setShowMenu(false); }}
+                >
+                  <Filter size={20} className={showFilters ? 'text-accent' : ''} />
+                  <span>{showFilters ? 'Hide Filters' : 'Show Filters'}</span>
+                </button>
+
+                <button 
+                  className="w-full flex items-center gap-4 px-4 py-4 hover:bg-bg-secondary rounded-2xl transition-colors font-bold text-sm"
+                  onClick={() => { setShowShare(true); setShowMenu(false); }}
+                >
+                  <Share2 size={20} />
+                  <span>Share Collection</span>
+                </button>
+
+                <button 
+                  className="w-full flex items-center gap-4 px-4 py-4 hover:bg-bg-secondary rounded-2xl transition-colors font-bold text-sm"
+                  onClick={() => { 
+                    if (collection.type === 'Movies') setShowWheel(true);
+                    else pickRandomItem();
+                    setShowMenu(false); 
+                  }}
+                >
+                  <Shuffle size={20} />
+                  <span>{collection.type === 'Movies' ? 'Movie Roulette' : 'Random Pick'}</span>
+                </button>
+
+                <div className="h-px bg-border my-2 mx-4" />
+                
+                <div className="px-4 py-2">
+                   <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-3">View Mode</p>
+                   <div className="grid grid-cols-3 gap-2 bg-bg-secondary p-1 rounded-2xl">
+                      {[
+                        { id: 'compact', icon: List },
+                        { id: 'grid', icon: Grid },
+                        { id: 'detailed', icon: LayoutList }
+                      ].map((mode) => (
+                        <button
+                          key={mode.id}
+                          onClick={() => setViewMode(mode.id as ViewMode)}
+                          className={`flex items-center justify-center py-2 rounded-xl transition-all ${viewMode === mode.id ? 'bg-bg shadow-sm text-accent scale-105' : 'opacity-40 hover:opacity-100'}`}
+                        >
+                          <mode.icon size={18} />
+                        </button>
+                      ))}
+                   </div>
+                </div>
+             </div>
+          </div>
+        </div>
+      )}
+
       {showFilters && (
-        <div className="filter-bar bg-bg-secondary p-4 rounded-xl border border-border mb-6">
+        <div className="filter-bar bg-bg-secondary p-4 rounded-xl border border-border mx-4 mb-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Filters</h3>
-            <button onClick={() => setShowFilters(false)}><X size={20} /></button>
+            <button onClick={() => setShowFilters(false)} className="p-2"><X size={20} /></button>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -176,14 +202,14 @@ const CollectionView: React.FC = () => {
               <input
                 type="text"
                 placeholder="Search items..."
-                className="w-full pl-10 pr-4 py-2 bg-bg border border-border rounded-lg"
+                className="w-full pl-10 pr-4 py-2 bg-bg border border-border rounded-lg outline-none focus:border-accent"
                 value={filters.search}
                 onChange={e => setFilters({ ...filters, search: e.target.value })}
               />
             </div>
 
             <select 
-              className="p-2 bg-bg border border-border rounded-lg"
+              className="p-2 bg-bg border border-border rounded-lg outline-none"
               value={filters.sortBy}
               onChange={e => setFilters({ ...filters, sortBy: e.target.value as any })}
             >
@@ -205,7 +231,7 @@ const CollectionView: React.FC = () => {
         </div>
       )}
 
-      <div className={`item-list ${viewMode}`}>
+      <div className={`item-list ${viewMode} px-4`}>
         {filteredItems.map((item, index) => {
           const firstLetter = item.sortTitle?.[0]?.toUpperCase() || '#';
           const prevLetter = index > 0 ? filteredItems[index - 1].sortTitle?.[0]?.toUpperCase() : null;
@@ -250,8 +276,8 @@ const CollectionView: React.FC = () => {
           );
         })}
         {filteredItems.length === 0 && (
-          <p className="empty-state text-center py-12 text-gray-500">
-            No items match your criteria.
+          <p className="empty-state text-center py-12 text-gray-500 font-bold uppercase text-xs tracking-widest">
+            {filters.search ? 'No matches found.' : 'Your collection is empty.'}
           </p>
         )}
       </div>
