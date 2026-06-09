@@ -62,8 +62,8 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
         setScanStatus(undefined);
       }, 2000);
     } else {
-      setScanStatus('Not Found. Try again?');
-      setTimeout(() => setScanStatus(undefined), 2000);
+      setScanStatus(`Not Found: ${barcode}. Try again?`);
+      setTimeout(() => setScanStatus(undefined), 4000);
     }
   };
 
