@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   ArrowLeft, Download, Upload, Trash2, 
-  Sun, Moon, Palette, Cloud, RefreshCw, CheckCircle2, AlertCircle, BookOpen
+  Sun, Moon, Palette, Cloud, RefreshCw, CheckCircle2, AlertCircle, BookOpen,
+  LogOut
 } from 'lucide-react';
 import { db } from '../db/db';
+import { useAuth } from '../contexts/AuthContext';
 import { syncService, type GitHubSyncConfig } from '../db/sync';
 import { importGoodreadsCSV } from '../db/import';
 
 const Settings: React.FC = () => {
+  const { logout } = useAuth();
   const [theme, setTheme] = useState(() => localStorage.getItem('hoarding_theme') || 'light');
   const [accent, setAccent] = useState(() => localStorage.getItem('hoarding_accent') || 'purple');
   
@@ -345,6 +348,10 @@ const Settings: React.FC = () => {
             <button className="settings-item danger" onClick={clearAll}>
               <Trash2 size={20} />
               <span>Clear All Local Data</span>
+            </button>
+            <button className="settings-item" onClick={logout}>
+              <LogOut size={20} />
+              <span>Log Out</span>
             </button>
           </div>
         </section>
