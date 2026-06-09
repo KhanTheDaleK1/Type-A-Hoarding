@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   ArrowLeft, Download, Upload, Trash2, 
-  Sun, Moon, Palette, Cloud, RefreshCw, CheckCircle2, AlertCircle, BookOpen,
-  LogOut
+  Sun, Moon, Palette, Cloud, RefreshCw, CheckCircle2, AlertCircle,
+  LogOut, FileUp, FileDown
 } from 'lucide-react';
 import { db } from '../db/db';
 import { useAuth } from '../contexts/AuthContext';
@@ -339,14 +339,14 @@ const Settings: React.FC = () => {
                   className="w-full flex items-center gap-3 p-3 bg-bg hover:bg-accent/5 border border-border rounded-2xl transition-all group"
                 >
                   <div className="p-2 bg-accent/10 rounded-xl text-accent group-hover:bg-accent group-hover:text-white transition-colors">
-                    <Download size={18} />
+                    <FileUp size={18} />
                   </div>
                   <span className="text-sm font-bold">Export JSON</span>
                 </button>
                 
                 <label className="w-full flex items-center gap-3 p-3 bg-bg hover:bg-accent/5 border border-border rounded-2xl transition-all group cursor-pointer">
                   <div className="p-2 bg-accent/10 rounded-xl text-accent group-hover:bg-accent group-hover:text-white transition-colors">
-                    <Upload size={18} />
+                    <FileDown size={18} />
                   </div>
                   <span className="text-sm font-bold">Import JSON</span>
                   <input type="file" accept=".json" className="hidden" onChange={importData} />
@@ -354,7 +354,7 @@ const Settings: React.FC = () => {
 
                 <label className="w-full flex items-center gap-3 p-3 bg-bg hover:bg-accent/5 border border-border rounded-2xl transition-all group cursor-pointer">
                   <div className="p-2 bg-accent/10 rounded-xl text-accent group-hover:bg-accent group-hover:text-white transition-colors">
-                    <BookOpen size={18} />
+                    <FileDown size={18} />
                   </div>
                   <span className="text-sm font-bold">Goodreads CSV</span>
                   <input type="file" accept=".csv" className="hidden" onChange={handleGoodreadsImport} />
