@@ -33,6 +33,34 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
   const handleScan = async (barcode: string) => {
     if (scanStatus) return; // Prevent double scans
     
+    // Check for Shared Collection QR Code
+    if (barcode.includes('HOARDING_SHARE_V1')) {
+      try {
+        const shared = JSON.parse(barcode);
+        if (confirm(`Import shared collection "${shared.name}"?`)) {
+          const newId = crypto.randomUUID();
+          await db.collections.add({
+            id: newId,
+            name: shared.name,
+            type: shared.collectionType,
+            createdAt: Date.now(),
+            customFields: [] // Note: Custom fields can be expanded in V2
+          });
+          
+          if (shared.syncToken) {
+            // Store sync token/info for live updates if desired
+            console.log(`Detected live sync token for ${shared.name}`);
+          }
+
+          setScanStatus(`Imported: ${shared.name}!`);
+          setTimeout(() => onClose(), 2000);
+          return;
+        }
+      } catch (e) {
+        setScanStatus('Invalid Share Code');
+      }
+    }
+
     setScanStatus('Searching...');
     const metadata = await fetchMetadataByBarcode(barcode);
     

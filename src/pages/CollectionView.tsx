@@ -4,13 +4,14 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { 
   ArrowLeft, Plus, Search, Filter, X, 
-  LayoutList, Grid, List, Shuffle 
+  LayoutList, Grid, List, Shuffle, Share2
 } from 'lucide-react';
 import { initialFilters, filterItems } from '../hooks/useFilters';
 import type { FilterOptions } from '../hooks/useFilters';
 import type { Item } from '../types';
 import ItemEditor from '../components/ItemEditor';
 import MovieWheel from '../components/MovieWheel';
+import ShareModal from '../components/ShareModal';
 
 type ViewMode = 'compact' | 'grid' | 'detailed';
 
@@ -19,6 +20,7 @@ const CollectionView: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showWheel, setShowWheel] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const [filters, setFilters] = useState<FilterOptions>(initialFilters);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     return (localStorage.getItem('hoarding_view_mode') as ViewMode) || 'detailed';
@@ -112,6 +114,13 @@ const CollectionView: React.FC = () => {
         </div>
         
         <div className="header-actions">
+          <button 
+            className="icon-button"
+            onClick={() => setShowShare(true)}
+            title="Share Collection"
+          >
+            <Share2 size={20} />
+          </button>
           <button 
             className={`icon-button ${showWheel ? 'accent' : ''}`}
             onClick={() => collection.type === 'Movies' ? setShowWheel(true) : pickRandomItem()}
@@ -259,6 +268,14 @@ const CollectionView: React.FC = () => {
           items={rawItems || []} 
           onClose={() => setShowWheel(false)} 
           onWatched={handleMarkWatched}
+        />
+      )}
+
+      {showShare && (
+        <ShareModal 
+          collection={collection}
+          syncToken={JSON.parse(localStorage.getItem('hoarding_github_config') || '{}').token}
+          onClose={() => setShowShare(false)}
         />
       )}
     </div>
