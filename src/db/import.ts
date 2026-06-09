@@ -1,7 +1,7 @@
 import Papa from 'papaparse';
 import { db } from './db';
 import type { Item } from '../types';
-import { fetchMetadataByBarcode } from './metadata';
+import { fetchMetadataByBarcode, fetchMetadataByTitle } from './metadata';
 
 export const importGoodreadsCSV = async (file: File, collectionId: string) => {
   return new Promise((resolve, reject) => {
@@ -56,8 +56,8 @@ export const importGoodreadsCSV = async (file: File, collectionId: string) => {
           // bulkPut handles both inserting new items and updating existing ones by ID
           await db.items.bulkPut(itemsToSave);
 
-          // Background task: Try to fetch images & better genres for books
-          fetchImagesInBackground(itemsToSave.filter(i => i.customData.isbn));
+          // Background task: Try to fetch images & better genres for items
+          fetchMetadataInBackground(itemsToSave, collectionId);
 
           resolve(itemsToSave.length);
         } catch (err) {
@@ -69,14 +69,35 @@ export const importGoodreadsCSV = async (file: File, collectionId: string) => {
   });
 };
 
-const fetchImagesInBackground = async (items: Item[]) => {
+export const fetchMetadataInBackground = async (items: Item[], collectionId?: string) => {
+  // Get collection type for smart searching
+  let collType = 'Books';
+  if (collectionId) {
+    const coll = await db.collections.get(collectionId);
+    if (coll) collType = coll.type;
+  }
+
   for (const item of items) {
+    // Only fetch if missing images or description
+    if (item.images.length > 0 && item.notes) continue;
+
     try {
-      const metadata = await fetchMetadataByBarcode(item.customData.isbn);
+      let metadata = null;
+      
+      // Strategy 1: Barcode/ISBN
+      if (item.customData.isbn) {
+        metadata = await fetchMetadataByBarcode(item.customData.isbn);
+      } 
+      
+      // Strategy 2: Title (specifically for movies/shows)
+      if (!metadata && (collType === 'Movies' || collType === 'TV Shows')) {
+        metadata = await fetchMetadataByTitle(item.title, collType);
+      }
+
       if (metadata) {
         const updates: any = {};
         if (metadata.thumbnail && item.images.length === 0) updates.images = [metadata.thumbnail];
-        if (metadata.description) updates.notes = metadata.description;
+        if (metadata.description && !item.notes) updates.notes = metadata.description;
         
         // Update genre if it's currently generic or unknown
         if (metadata.genre && (!item.customData.genre || item.customData.genre === 'Unknown')) {
@@ -87,6 +108,7 @@ const fetchImagesInBackground = async (items: Item[]) => {
           await db.items.update(item.id, updates);
         }
       }
+      // Wait 1s between calls to respect API limits and prevent UI lag
       await new Promise(r => setTimeout(r, 1000));
     } catch (e) {
       console.warn(`Failed background fetch for ${item.title}`);

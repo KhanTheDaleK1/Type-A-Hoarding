@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { 
   ArrowLeft, Plus, Search, Filter, X, 
-  LayoutList, Grid, List, Shuffle, Share2, Menu
+  LayoutList, Grid, List, Shuffle, Share2, Menu, Wand2
 } from 'lucide-react';
 import { initialFilters, filterItems } from '../hooks/useFilters';
 import type { FilterOptions } from '../hooks/useFilters';
@@ -12,6 +12,7 @@ import type { Item } from '../types';
 import ItemEditor from '../components/ItemEditor';
 import MovieWheel from '../components/MovieWheel';
 import ShareModal from '../components/ShareModal';
+import { fetchMetadataInBackground } from '../db/import';
 
 type ViewMode = 'compact' | 'grid' | 'detailed';
 
@@ -22,6 +23,7 @@ const CollectionView: React.FC = () => {
   const [showWheel, setShowWheel] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [isRepairing, setIsRepairing] = useState(false);
   const [filters, setFilters] = useState<FilterOptions>(initialFilters);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     return (localStorage.getItem('hoarding_view_mode') as ViewMode) || 'detailed';
@@ -29,6 +31,20 @@ const CollectionView: React.FC = () => {
 
   const collection = useLiveQuery(() => db.collections.get(id || ''));
   const rawItems = useLiveQuery(() => db.items.where('collectionId').equals(id || '').toArray(), [id]);
+
+  const handleRepair = async () => {
+    if (!rawItems || rawItems.length === 0) return;
+    setIsRepairing(true);
+    try {
+      await fetchMetadataInBackground(rawItems, id);
+      alert('Metadata repair complete! Missing art and info have been fetched where possible.');
+    } catch (e) {
+      console.error('Repair failed:', e);
+      alert('Metadata repair encountered an error.');
+    } finally {
+      setIsRepairing(false);
+    }
+  };
 
   useEffect(() => {
     localStorage.setItem('hoarding_view_mode', viewMode);
@@ -153,20 +169,28 @@ const CollectionView: React.FC = () => {
                   <span>Share Collection</span>
                 </button>
 
-                <button 
+                <button
                   className="w-full flex items-center gap-4 px-4 py-4 hover:bg-bg-secondary rounded-2xl transition-colors font-bold text-sm"
-                  onClick={() => { 
+                  onClick={() => {
                     if (collection.type === 'Movies' || collection.type === 'Books') setShowWheel(true);
                     else pickRandomItem();
-                    setShowMenu(false); 
+                    setShowMenu(false);
                   }}
                 >
                   <Shuffle size={20} />
                   <span>{collection.type === 'Movies' ? 'Movie Roulette' : collection.type === 'Books' ? 'Book Roulette' : 'Random Pick'}</span>
                 </button>
 
+                <button
+                  className="w-full flex items-center gap-4 px-4 py-4 hover:bg-bg-secondary rounded-2xl transition-colors font-bold text-sm text-accent"
+                  onClick={() => { handleRepair(); setShowMenu(false); }}
+                  disabled={isRepairing}
+                >
+                  <Wand2 size={20} className={isRepairing ? "animate-pulse" : ""} />
+                  <span>{isRepairing ? 'Repairing...' : 'Repair Metadata'}</span>
+                </button>
+
                 <div className="h-px bg-border my-2 mx-4" />
-                
                 <div className="px-4 py-2">
                    <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-3">View Mode</p>
                    <div className="grid grid-cols-3 gap-2 bg-bg-secondary p-1 rounded-2xl">
