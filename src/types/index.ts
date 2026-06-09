@@ -1,0 +1,36 @@
+export type CollectionType = 'Movies' | 'Books' | 'Video Games' | 'Comics' | 'Music' | 'Toy Cars' | 'LEGO' | 'Wine' | 'Coins' | 'Art' | 'Action Figures' | 'Currency' | 'Board Games' | 'Magazines' | 'Custom';
+
+export interface FieldDefinition {
+  id: string;
+  name: string;
+  type: 'text' | 'number' | 'date' | 'boolean' | 'rating' | 'select';
+  options?: string[]; // For select type
+}
+
+export interface Collection {
+  id: string;
+  name: string;
+  type: CollectionType;
+  icon?: string;
+  customFields: FieldDefinition[];
+  createdAt: number;
+}
+
+export interface Item {
+  id: string;
+  collectionId: string;
+  title: string;
+  sortTitle: string; 
+  mediaType?: string; // e.g., DVD, VHS, Digital, Hardcover, Digital (Steam), etc.
+  images: string[]; 
+  loanedStatus: boolean;
+  loanedTo?: string;
+  purchasePrice?: number;
+  purchaseDate?: number;
+  dateAdded: number;
+  personalRating: number;
+  storageLocation?: string;
+  notes?: string;
+  estimatedValue?: number;
+  customData: Record<string, any>; // Stores data for customFields
+}
