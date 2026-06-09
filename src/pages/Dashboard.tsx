@@ -2,15 +2,51 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
-import { Plus, Settings as SettingsIcon, Package, Edit2, Search } from 'lucide-react';
+import { Plus, Settings as SettingsIcon, Package, Edit2, Search, Camera } from 'lucide-react';
 import CollectionEditor from '../components/CollectionEditor';
+import Scanner from '../components/Scanner';
 import type { Collection } from '../types';
 
 const Dashboard: React.FC = () => {
   const [editingCollection, setEditingCollection] = useState<Collection | 'new' | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showScanner, setShowScanner] = useState(false);
+  const [scanStatus, setScanStatus] = useState<string | undefined>();
+  
   const collections = useLiveQuery(() => db.collections.toArray());
   const items = useLiveQuery(() => db.items.toArray());
+
+  const handleScan = async (code: string) => {
+    if (scanStatus) return;
+
+    if (code.includes('HOARDING_SHARE_V1')) {
+      try {
+        const shared = JSON.parse(code);
+        if (confirm(`Import shared collection "${shared.name}"?`)) {
+          setScanStatus('Importing...');
+          const newId = crypto.randomUUID();
+          await db.collections.add({
+            id: newId,
+            name: shared.name,
+            type: shared.collectionType,
+            createdAt: Date.now(),
+            customFields: []
+          });
+          setScanStatus(`Imported: ${shared.name}!`);
+          setTimeout(() => {
+            setShowScanner(false);
+            setScanStatus(undefined);
+          }, 2000);
+          return;
+        }
+      } catch (e) {
+        setScanStatus('Invalid Share Code');
+      }
+    } else {
+      setScanStatus('Not a Collection QR Code');
+      setTimeout(() => setScanStatus(undefined), 2000);
+    }
+  };
 
   const filteredCollections = collections?.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -40,6 +76,13 @@ const Dashboard: React.FC = () => {
               onChange={e => setSearchQuery(e.target.value)}
             />
           </div>
+          <button 
+            onClick={() => setShowScanner(true)}
+            className="icon-button p-3 bg-bg-secondary rounded-2xl border border-border hover:bg-border transition-all"
+            title="Scan Collection QR"
+          >
+            <Camera size={24} />
+          </button>
           <Link to="/settings" className="icon-button p-3 bg-bg-secondary rounded-2xl border border-border hover:bg-border transition-all">
             <SettingsIcon size={24} />
           </Link>
@@ -104,6 +147,14 @@ const Dashboard: React.FC = () => {
         <CollectionEditor 
           collection={editingCollection === 'new' ? undefined : editingCollection}
           onClose={() => setEditingCollection(null)}
+        />
+      )}
+
+      {showScanner && (
+        <Scanner 
+          onScan={handleScan}
+          onClose={() => setShowScanner(false)}
+          status={scanStatus}
         />
       )}
     </div>
