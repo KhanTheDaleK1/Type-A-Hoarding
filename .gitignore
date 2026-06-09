@@ -27,3 +27,6 @@ dist-ssr/
 # Env
 *.local
 .env
+
+# Data
+Beechem Family Data
