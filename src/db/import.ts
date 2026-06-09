@@ -17,16 +17,17 @@ export const importGoodreadsCSV = async (file: File, collectionId: string) => {
           const existingItems = await db.items.where('collectionId').equals(collectionId).toArray();
 
           for (const book of books) {
-            const title = book['Title'] || 'Unknown Title';
-            const author = book['Author'] || 'Unknown Author';
+            const title = (book['Title'] || 'Unknown Title').trim();
+            const author = (book['Author'] || 'Unknown Author').trim();
             const isbn = (book['ISBN13'] || book['ISBN'] || '').replace(/[^0-9]/g, '');
             const rating = parseInt(book['My Rating']) || 0;
             const dateRead = book['Date Read'];
+            const bookshelves = book['Bookshelves'] || '';
             
-            // Look for existing item by ISBN or Title+Author
+            // Look for existing item by ISBN or Normalized Title+Author
             const existing = existingItems.find(i => 
               (isbn && i.customData.isbn === isbn) || 
-              (i.title.toLowerCase() === title.toLowerCase() && i.customData.author?.toLowerCase() === author.toLowerCase())
+              (i.title.trim().toLowerCase() === title.toLowerCase() && i.customData.author?.trim().toLowerCase() === author.toLowerCase())
             );
 
             const itemData: Item = {
@@ -35,15 +36,17 @@ export const importGoodreadsCSV = async (file: File, collectionId: string) => {
               title: title,
               sortTitle: title.replace(/^(The|A|An)\s+/i, '') + ', ' + (title.match(/^(The|A|An)\s+/i)?.[0].trim() || ''),
               mediaType: 'Book',
-              images: existing?.images || [], // Preserve existing images if we have them
+              images: existing?.images || [], 
               watched: !!dateRead,
               loanedStatus: existing?.loanedStatus || false,
               dateAdded: existing?.dateAdded || Date.now(),
               personalRating: rating,
               customData: {
+                ...existing?.customData,
                 author: author,
                 isbn: isbn,
                 dateRead: dateRead,
+                genre: existing?.customData.genre || (bookshelves.split(',')[0].trim() || 'Unknown'),
                 year: book['Year Published'] || book['Original Publication Year']
               }
             };
@@ -53,8 +56,8 @@ export const importGoodreadsCSV = async (file: File, collectionId: string) => {
           // bulkPut handles both inserting new items and updating existing ones by ID
           await db.items.bulkPut(itemsToSave);
 
-          // Background task: Try to fetch images for books with ISBNs that don't have images yet
-          fetchImagesInBackground(itemsToSave.filter(i => i.customData.isbn && i.images.length === 0));
+          // Background task: Try to fetch images & better genres for books
+          fetchImagesInBackground(itemsToSave.filter(i => i.customData.isbn));
 
           resolve(itemsToSave.length);
         } catch (err) {
@@ -67,17 +70,23 @@ export const importGoodreadsCSV = async (file: File, collectionId: string) => {
 };
 
 const fetchImagesInBackground = async (items: Item[]) => {
-  // Simple throttled fetcher
   for (const item of items) {
     try {
       const metadata = await fetchMetadataByBarcode(item.customData.isbn);
-      if (metadata && metadata.thumbnail) {
-        await db.items.update(item.id, { 
-          images: [metadata.thumbnail],
-          notes: metadata.description || item.notes 
-        });
+      if (metadata) {
+        const updates: any = {};
+        if (metadata.thumbnail && item.images.length === 0) updates.images = [metadata.thumbnail];
+        if (metadata.description) updates.notes = metadata.description;
+        
+        // Update genre if it's currently generic or unknown
+        if (metadata.genre && (!item.customData.genre || item.customData.genre === 'Unknown')) {
+          updates.customData = { ...item.customData, genre: metadata.genre.split(',')[0].trim() };
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await db.items.update(item.id, updates);
+        }
       }
-      // Wait 1s between calls to respect API limits
       await new Promise(r => setTimeout(r, 1000));
     } catch (e) {
       console.warn(`Failed background fetch for ${item.title}`);
