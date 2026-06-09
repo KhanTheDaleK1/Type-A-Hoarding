@@ -35,13 +35,26 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
         // Try to start with back camera by default
         await html5QrCodeScanner.current.start(
           { facingMode: "environment" },
-          config,
-          (decodedText) => {
-            onScan(decodedText);
+          { 
+            fps: 20, 
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+              const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+              const qrboxSize = Math.floor(minEdgeSize * 0.7);
+              return {
+                width: qrboxSize,
+                height: Math.floor(qrboxSize * 0.6)
+              };
+            },
+            aspectRatio: 1.0,
           },
-          () => {
-            // Error callback for every frame, ignored
-          }
+          async (decodedText) => {
+            // Success! Pause scanning to show feedback
+            if (html5QrCodeScanner.current?.isScanning) {
+              // Note: stop/start is heavy, we'll just handle the status in props
+              onScan(decodedText);
+            }
+          },
+          () => {}
         );
         
         setIsInitializing(false);
@@ -69,11 +82,11 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black">
-      {/* Scanner Viewport */}
-      <div id="reader" className="w-full h-full max-h-screen overflow-hidden"></div>
+      {/* Scanner Viewport - Ensure it takes full space and stays visible */}
+      <div id="reader" className="w-full h-full min-h-screen overflow-hidden bg-black"></div>
 
-      {/* Error / Loading State */}
-      {(error || isInitializing) && (
+      {/* Error / Loading State - Only show if not scanning */}
+      {(error || (isInitializing && !error)) && (
         <div className="absolute inset-0 z-[101] flex flex-col items-center justify-center bg-gray-900/90 p-8 text-center text-white backdrop-blur-sm">
           {isInitializing ? (
             <div className="flex flex-col items-center gap-4">
@@ -141,13 +154,30 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
       </div>
 
       <style>{`
-        #reader { border: none !important; }
+        #reader { border: none !important; position: relative; }
         #reader video { object-fit: cover !important; width: 100% !important; height: 100% !important; }
+        #reader__scan_region { background: transparent !important; }
+        /* Hide default library boxes */
+        #reader__scan_region > div { border: 2px solid rgba(170, 59, 255, 0.5) !important; border-radius: 12px; }
+        
         @keyframes scan {
-          0%, 100% { transform: translateX(-100%); }
-          50% { transform: translateX(100%); }
+          0%, 100% { transform: translateY(-90px); opacity: 0.2; }
+          50% { transform: translateY(90px); opacity: 1; }
+        }
+        .scan-line {
+          position: absolute;
+          left: 10%;
+          right: 10%;
+          height: 2px;
+          background: #aa3bff;
+          box-shadow: 0 0 15px #aa3bff, 0 0 5px white;
+          z-index: 10;
+          pointer-events: none;
+          top: 50%;
+          animation: scan 2.5s ease-in-out infinite;
         }
       `}</style>
+      <div className="scan-line"></div>
     </div>
   );
 };
