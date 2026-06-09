@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 // Scanner component using html5-qrcode for barcode detection
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { X, CameraOff, RefreshCw, Camera } from 'lucide-react';
 
 interface ScannerProps {
@@ -34,12 +34,20 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
       }
 
       const config = { 
-        fps: 15, 
+        fps: 24, // Higher FPS for better 1D detection
         qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-          const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.8);
-          return { width: size, height: Math.floor(size * 0.5) };
+          const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.85);
+          return { width: size, height: Math.floor(size * 0.4) }; // Wider box for 1D barcodes
         },
         aspectRatio: 1.0,
+        // Force 1D Barcode formats
+        formatsToSupport: [ 
+          Html5QrcodeSupportedFormats.EAN_13, 
+          Html5QrcodeSupportedFormats.EAN_8, 
+          Html5QrcodeSupportedFormats.UPC_A, 
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+        ]
       };
 
       const target = cameraId ? cameraId : { facingMode: "environment" };
@@ -49,6 +57,7 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
         config,
         (decodedText) => {
           if (!scanLock.current) {
+            console.log('Scanner: Scanned complete code ->', decodedText);
             scanLock.current = true;
             onScan(decodedText);
             setTimeout(() => { scanLock.current = false; }, 3000);
