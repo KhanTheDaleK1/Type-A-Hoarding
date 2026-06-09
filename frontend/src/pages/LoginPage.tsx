@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LogIn, UserPlus, ShieldCheck, Box, Cloud } from 'lucide-react';
+import { LogIn, UserPlus, Box, ArrowRight } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -10,7 +10,6 @@ const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  // Ensure dark mode is active on the login page for that "Pro" look
   useEffect(() => {
     const savedTheme = localStorage.getItem('hoarding_theme');
     if (!savedTheme) {
@@ -20,84 +19,75 @@ const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Simulate successful login
-    // In the GitHub sync version, we primarily care about the local experience
     login(email, 'fake-jwt-token');
     navigate('/');
   };
 
   return (
-    <div className="login-page flex min-h-[90vh] items-center justify-center p-4">
-      <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-bg-secondary border border-border shadow-2xl flex flex-col md:flex-row">
-        
-        {/* Left Side: Branding/Visual */}
-        <div className="bg-accent p-8 text-white flex flex-col justify-between md:w-5/12">
-          <div>
-            <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center mb-6">
-              <Box size={28} />
-            </div>
-            <h1 className="text-2xl font-black leading-tight mb-2 tracking-tighter">TYPE-A<br/>HOARDING</h1>
-            <div className="w-12 h-1 bg-white/40 rounded-full mb-6"></div>
+    <div className="bg-mesh -mx-4 -my-8 px-4 py-8 overflow-hidden">
+      <div className="w-full max-w-md glass rounded-[2.5rem] p-8 md:p-12 animate-fade-in relative">
+        {/* Subtle Decorative Element */}
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-accent/20 rounded-full blur-[80px]" />
+        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-accent/10 rounded-full blur-[80px]" />
+
+        <header className="text-center mb-10 relative">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent mb-6 shadow-2xl shadow-accent/40">
+            <Box size={32} className="text-white" />
           </div>
-          
-          <div className="mt-8 space-y-4">
+          <h1 className="text-3xl font-black tracking-tighter text-white uppercase mb-2">
+            Type-A
+          </h1>
+          <div className="h-1 w-8 bg-accent mx-auto rounded-full" />
+        </header>
+
+        <form onSubmit={handleSubmit} className="space-y-6 relative">
+          <div className="space-y-2">
+            <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 ml-1">
+              Archival Identity
+            </label>
+            <input 
+              type="email" 
+              required
+              className="input-modern"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="archive@identity.com"
+            />
           </div>
-        </div>
 
-        {/* Right Side: Form */}
-        <div className="p-8 flex-grow bg-bg">
-          <header className="mb-8">
-            <h2 className="text-2xl font-bold mb-1">
-              {isRegister ? 'Begin Your Hoard' : 'Welcome Back'}
-            </h2>
-            <p className="text-sm opacity-50">
-              {isRegister ? 'Start cataloging with extreme precision.' : 'Access your curated archives.'}
-            </p>
-          </header>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest opacity-40 mb-1.5 ml-1">Email Identifier</label>
-              <input 
-                type="email" 
-                required
-                className="w-full rounded-xl border border-border bg-bg-secondary p-4 text-sm focus:border-accent outline-none transition-all shadow-inner"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="you@archive.com"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest opacity-40 mb-1.5 ml-1">Secure Key</label>
-              <input 
-                type="password" 
-                required
-                className="w-full rounded-xl border border-border bg-bg-secondary p-4 text-sm focus:border-accent outline-none transition-all shadow-inner"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-              />
-            </div>
-
-            <button 
-              type="submit"
-              className="flex w-full items-center justify-center gap-3 rounded-xl bg-accent p-4 text-white font-bold hover:bg-accent-hover transition-all shadow-lg shadow-accent/25 mt-2 active:scale-[0.98]"
-            >
-              {isRegister ? <UserPlus size={20} /> : <LogIn size={20} />}
-              <span>{isRegister ? 'Create Profile' : 'Authorize Entry'}</span>
-            </button>
-          </form>
-
-          <div className="mt-8 pt-6 border-t border-border text-center">
-            <button 
-              onClick={() => setIsRegister(!isRegister)}
-              className="text-xs font-bold text-accent uppercase tracking-widest hover:opacity-70 transition-opacity"
-            >
-              {isRegister ? 'Already Authorized? Sign In' : "No Profile? Request Access"}
-            </button>
+          <div className="space-y-2">
+            <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 ml-1">
+              Access Key
+            </label>
+            <input 
+              type="password" 
+              required
+              className="input-modern"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••••••"
+            />
           </div>
-        </div>
+
+          <button 
+            type="submit"
+            className="group w-full flex items-center justify-between gap-3 rounded-2xl bg-white p-5 text-black font-black text-sm uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all shadow-2xl"
+          >
+            <span>{isRegister ? 'Initialize' : 'Authorize'}</span>
+            <div className="w-8 h-8 rounded-lg bg-black text-white flex items-center justify-center group-hover:bg-accent transition-colors">
+              <ArrowRight size={18} />
+            </div>
+          </button>
+        </form>
+
+        <footer className="mt-12 pt-8 border-t border-white/5 text-center relative">
+          <button 
+            onClick={() => setIsRegister(!isRegister)}
+            className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/30 hover:text-accent transition-colors"
+          >
+            {isRegister ? 'Switch to Authorization' : 'Request New Identity'}
+          </button>
+        </footer>
       </div>
     </div>
   );
