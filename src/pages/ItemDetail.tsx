@@ -87,7 +87,7 @@ const ItemDetail: React.FC = () => {
                       <ShieldCheck size={14} />
                       <span className="text-[10px] font-black uppercase tracking-wider">Genre</span>
                     </div>
-                    <div className="text-sm font-black truncate">{item.customData.genre || 'NR'}</div>
+                    <div className="text-sm font-black truncate">{item.customData.genre || 'Unknown'}</div>
                   </div>
                   <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
                     <div className="flex items-center gap-2 text-gray-500 mb-1">
@@ -101,7 +101,7 @@ const ItemDetail: React.FC = () => {
                       <Calendar size={14} />
                       <span className="text-[10px] font-black uppercase tracking-wider">Read</span>
                     </div>
-                    <div className="text-sm font-bold">{item.customData.dateRead || 'Never'}</div>
+                    <div className="text-sm font-bold">{item.customData.dateRead || 'Not Read'}</div>
                   </div>
                 </>
               ) : (
@@ -111,7 +111,7 @@ const ItemDetail: React.FC = () => {
                       <ShieldCheck size={14} />
                       <span className="text-[10px] font-black uppercase tracking-wider">Rating</span>
                     </div>
-                    <div className="text-lg font-black">{item.customData.contentRating || 'NR'}</div>
+                    <div className="text-lg font-black">{item.customData.contentRating || 'Unknown'}</div>
                   </div>
                   <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
                     <div className="flex items-center gap-2 text-gray-500 mb-1">

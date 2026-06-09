@@ -276,6 +276,11 @@ const Settings: React.FC = () => {
                 />
               </div>
             </div>
+            <div className="flex items-center gap-2 p-3 bg-accent/5 rounded-xl border border-accent/20">
+              <RefreshCw size={14} className="text-accent animate-spin-slow" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-accent">Background Auto-Sync Active</span>
+            </div>
+
             <button 
               onClick={handleSaveConfig}
               className="w-full p-2 bg-border hover:bg-accent hover:text-white rounded-lg text-sm font-bold transition-all"

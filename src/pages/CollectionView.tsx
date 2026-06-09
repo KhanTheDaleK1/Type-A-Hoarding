@@ -256,7 +256,7 @@ const CollectionView: React.FC = () => {
                   {collection.type === 'Books' ? (
                     <>{item.customData.author || 'Unknown Author'} • {item.customData.year || 'Unknown'}</>
                   ) : (
-                    <>{item.customData.year || 'Unknown'} • {item.customData.contentRating || 'NR'}</>
+                    <>{item.customData.year || 'Unknown'} • {item.customData.contentRating || 'Unknown'}</>
                   )}
                 </p>
                 {viewMode === 'detailed' && item.notes && (

@@ -7,6 +7,7 @@ import Settings from './pages/Settings'
 import LoginPage from './pages/LoginPage'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { seedDatabase } from './db/db'
+import { useAutoSync } from './hooks/useAutoSync'
 import './index.css'
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -16,6 +17,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 function AppContent() {
+  useAutoSync();
+
   useEffect(() => {
     // Apply persisted theme and accent
     const theme = localStorage.getItem('hoarding_theme') || 'light';

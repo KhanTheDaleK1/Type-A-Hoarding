@@ -92,6 +92,18 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
     }
   };
 
+  const MEDIA_TYPES_BY_COLLECTION: Record<string, string[]> = {
+    'Movies': ['DVD', 'VHS', 'Blu-ray', '4K', 'Digital'],
+    'Books': ['Hardcover', 'Paperback', 'Kindle', 'Audiobook', 'Mass Market'],
+    'Music': ['CD', 'Vinyl', 'Digital', 'Cassette'],
+    'Video Games': ['Physical', 'Digital']
+  };
+
+  const BOOK_GENRES = [
+    'Fantasy', 'Sci-Fi', 'Mystery', 'Thriller', 'Romance', 
+    'Horror', 'Historical', 'Biography', 'Self-Help', 'Cooking'
+  ];
+
   const handleSave = async () => {
     if (!formData.title) return alert('Title is required');
     
@@ -162,9 +174,11 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
 
               <div className="grid grid-cols-1 gap-2">
                 <div>
-                  <label className="block text-xs font-bold uppercase opacity-50 mb-2">Media Type</label>
+                  <label className="block text-xs font-bold uppercase opacity-50 mb-2">
+                    {collection.type === 'Books' ? 'Format' : 'Media Type'}
+                  </label>
                   <div className="flex flex-wrap gap-2">
-                    {['DVD', 'VHS', 'Blu-ray', '4K', 'Digital'].map(type => (
+                    {(MEDIA_TYPES_BY_COLLECTION[collection.type] || ['Physical', 'Digital']).map(type => (
                       <button 
                         key={type}
                         type="button"
@@ -177,6 +191,24 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
                   </div>
                 </div>
               </div>
+
+              {collection.type === 'Books' && (
+                <div>
+                  <label className="block text-xs font-bold uppercase opacity-50 mb-2">Quick Genre</label>
+                  <div className="flex flex-wrap gap-2">
+                    {BOOK_GENRES.map(genre => (
+                      <button 
+                        key={genre}
+                        type="button"
+                        onClick={() => updateCustomData('genre', genre)}
+                        className={`px-3 py-2 text-[10px] font-black rounded-lg border transition-all ${formData.customData?.genre === genre ? 'bg-accent text-white border-accent' : 'bg-bg-secondary border-border opacity-60'}`}
+                      >
+                        {genre}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-2">
                 <div>

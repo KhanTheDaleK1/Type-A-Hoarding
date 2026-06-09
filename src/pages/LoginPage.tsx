@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Box, LogIn, UserPlus } from 'lucide-react';
+import { Box, LogIn, UserPlus, Github, Chrome, Apple } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -21,6 +21,16 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     login(email, 'fake-token');
     navigate('/');
+  };
+
+  const handleSocialLogin = (provider: string) => {
+    // For now, we simulate success for GitHub and redirect
+    if (provider === 'github') {
+      login('github-user@example.com', 'gh-oauth-sim-token');
+      navigate('/');
+    } else {
+      alert(`${provider} login coming soon! Currently focusing on GitHub-only backend.`);
+    }
   };
 
   return (
@@ -68,6 +78,34 @@ const LoginPage: React.FC = () => {
             <span>{isRegister ? 'Register' : 'Sign In'}</span>
           </button>
         </form>
+
+        <div className="mt-8 space-y-4">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border"></div></div>
+            <div className="relative flex justify-center text-[10px] uppercase font-black tracking-widest"><span className="bg-bg-secondary px-4 opacity-40">Or continue with</span></div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <button 
+              onClick={() => handleSocialLogin('github')}
+              className="flex items-center justify-center p-3 rounded-xl border border-border bg-bg hover:bg-bg-secondary transition-all"
+            >
+              <Github size={20} />
+            </button>
+            <button 
+              onClick={() => handleSocialLogin('google')}
+              className="flex items-center justify-center p-3 rounded-xl border border-border bg-bg hover:bg-bg-secondary transition-all"
+            >
+              <Chrome size={20} />
+            </button>
+            <button 
+              onClick={() => handleSocialLogin('apple')}
+              className="flex items-center justify-center p-3 rounded-xl border border-border bg-bg hover:bg-bg-secondary transition-all"
+            >
+              <Apple size={20} />
+            </button>
+          </div>
+        </div>
 
         <div className="mt-8 text-center border-t border-border pt-6">
           <button 
