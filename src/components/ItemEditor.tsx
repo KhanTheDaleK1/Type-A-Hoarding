@@ -77,7 +77,10 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
         customData: {
           author: metadata.author,
           publisher: metadata.publisher,
-          year: metadata.year
+          year: metadata.year,
+          genre: metadata.genre,
+          dateRead: collection.type === 'Books' ? '' : undefined,
+          dateWatched: collection.type === 'Movies' ? '' : undefined
         }
       };
 
@@ -194,6 +197,32 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
                     onChange={e => setFormData({ ...formData, estimatedValue: parseFloat(e.target.value) })}
                   />
                 </div>
+              </div>
+
+              <div className="p-4 bg-bg-secondary rounded-2xl border border-border space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-widest opacity-50">
+                    {collection.type === 'Books' ? 'Finished Reading' : 'Watched'}
+                  </span>
+                  <button 
+                    type="button"
+                    onClick={() => setFormData({ ...formData, watched: !formData.watched })}
+                    className={`w-12 h-6 rounded-full transition-all relative ${formData.watched ? 'bg-success' : 'bg-border'}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${formData.watched ? 'left-7' : 'left-1'}`} />
+                  </button>
+                </div>
+                {formData.watched && (
+                  <div className="animate-in fade-in slide-in-from-top-2">
+                    <label className="block text-[10px] font-black uppercase opacity-40 mb-1">Date {collection.type === 'Books' ? 'Read' : 'Watched'}</label>
+                    <input 
+                      type="date" 
+                      className="w-full bg-bg border border-border rounded-xl p-2 text-xs outline-none"
+                      value={formData.customData?.[collection.type === 'Books' ? 'dateRead' : 'dateWatched'] || ''}
+                      onChange={e => updateCustomData(collection.type === 'Books' ? 'dateRead' : 'dateWatched', e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 

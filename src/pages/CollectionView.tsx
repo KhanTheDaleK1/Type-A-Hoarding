@@ -76,9 +76,10 @@ const CollectionView: React.FC = () => {
   };
 
   const handleMarkWatched = async (item: Item) => {
+    const dateField = collection?.type === 'Books' ? 'dateRead' : 'dateWatched';
     await db.items.update(item.id, { 
       watched: true, 
-      customData: { ...item.customData, dateWatched: new Date().toISOString().split('T')[0] } 
+      customData: { ...item.customData, [dateField]: new Date().toISOString().split('T')[0] } 
     });
     setShowWheel(false);
   };
@@ -155,13 +156,13 @@ const CollectionView: React.FC = () => {
                 <button 
                   className="w-full flex items-center gap-4 px-4 py-4 hover:bg-bg-secondary rounded-2xl transition-colors font-bold text-sm"
                   onClick={() => { 
-                    if (collection.type === 'Movies') setShowWheel(true);
+                    if (collection.type === 'Movies' || collection.type === 'Books') setShowWheel(true);
                     else pickRandomItem();
                     setShowMenu(false); 
                   }}
                 >
                   <Shuffle size={20} />
-                  <span>{collection.type === 'Movies' ? 'Movie Roulette' : 'Random Pick'}</span>
+                  <span>{collection.type === 'Movies' ? 'Movie Roulette' : collection.type === 'Books' ? 'Book Roulette' : 'Random Pick'}</span>
                 </button>
 
                 <div className="h-px bg-border my-2 mx-4" />
@@ -252,7 +253,11 @@ const CollectionView: React.FC = () => {
                   <h3 className="font-bold">{item.title}</h3>
                 </div>
                 <p className="text-sm opacity-70">
-                  {item.customData.year || 'Unknown'} • {item.customData.contentRating || 'NR'}
+                  {collection.type === 'Books' ? (
+                    <>{item.customData.author || 'Unknown Author'} • {item.customData.year || 'Unknown'}</>
+                  ) : (
+                    <>{item.customData.year || 'Unknown'} • {item.customData.contentRating || 'NR'}</>
+                  )}
                 </p>
                 {viewMode === 'detailed' && item.notes && (
                   <p className="mt-2 text-sm italic line-clamp-2">{item.notes}</p>
@@ -266,7 +271,7 @@ const CollectionView: React.FC = () => {
                     )}
                     {item.watched && (
                       <span className="inline-block text-[10px] font-bold uppercase tracking-wider bg-gray-500 text-white px-2 py-0.5 rounded shadow-sm">
-                        Watched
+                        {collection.type === 'Books' ? 'Read' : 'Watched'}
                       </span>
                     )}
                   </div>
@@ -292,6 +297,7 @@ const CollectionView: React.FC = () => {
       {showWheel && (
         <MovieWheel 
           items={rawItems || []} 
+          collectionType={collection?.type}
           onClose={() => setShowWheel(false)} 
           onWatched={handleMarkWatched}
         />

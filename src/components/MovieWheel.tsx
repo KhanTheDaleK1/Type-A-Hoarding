@@ -4,11 +4,12 @@ import { X, Play, RefreshCw, CheckCircle } from 'lucide-react';
 
 interface MovieWheelProps {
   items: Item[];
+  collectionType?: string;
   onClose: () => void;
   onWatched: (item: Item) => void;
 }
 
-const MovieWheel: React.FC<MovieWheelProps> = ({ items, onClose, onWatched }) => {
+const MovieWheel: React.FC<MovieWheelProps> = ({ items, collectionType, onClose, onWatched }) => {
   const [spinning, setSpinning] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [rotation, setRotation] = useState(0);
@@ -46,7 +47,9 @@ const MovieWheel: React.FC<MovieWheelProps> = ({ items, onClose, onWatched }) =>
 
       <div className="w-full max-w-lg flex flex-col items-center gap-12">
         <header className="text-center space-y-2">
-          <h2 className="text-4xl font-black text-white tracking-tight">Movie Roulette</h2>
+          <h2 className="text-4xl font-black text-white tracking-tight">
+            {collectionType === 'Books' ? 'Book' : 'Movie'} Roulette
+          </h2>
           <p className="text-white/40 font-bold uppercase tracking-widest text-xs">
             {unwatchedItems.length} options remaining
           </p>
@@ -89,7 +92,7 @@ const MovieWheel: React.FC<MovieWheelProps> = ({ items, onClose, onWatched }) =>
                 onClick={() => onWatched(selectedItem)}
                 className="flex items-center gap-2 px-8 py-3 bg-success text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:opacity-90 transition-all"
               >
-                <CheckCircle size={18} /> Mark as Watched
+                <CheckCircle size={18} /> Mark as {collectionType === 'Books' ? 'Read' : 'Watched'}
               </button>
               <button 
                 onClick={spin}

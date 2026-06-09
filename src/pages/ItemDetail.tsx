@@ -68,7 +68,9 @@ const ItemDetail: React.FC = () => {
 
         <div className="space-y-8">
           <section className="space-y-4">
-            <h2 className="text-sm font-black uppercase tracking-[0.2em] text-accent opacity-80 border-b border-border pb-2">Movie Details</h2>
+            <h2 className="text-sm font-black uppercase tracking-[0.2em] text-accent opacity-80 border-b border-border pb-2">
+              {collection?.type === 'Books' ? 'Book' : collection?.type === 'Music' ? 'Album' : 'Movie'} Details
+            </h2>
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
                 <div className="flex items-center gap-2 text-gray-500 mb-1">
@@ -77,27 +79,56 @@ const ItemDetail: React.FC = () => {
                 </div>
                 <div className="text-lg font-black">{item.customData.year || 'Unknown'}</div>
               </div>
-              <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
-                <div className="flex items-center gap-2 text-gray-500 mb-1">
-                  <ShieldCheck size={14} />
-                  <span className="text-[10px] font-black uppercase tracking-wider">Rating</span>
-                </div>
-                <div className="text-lg font-black">{item.customData.contentRating || 'NR'}</div>
-              </div>
-              <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
-                <div className="flex items-center gap-2 text-gray-500 mb-1">
-                  <Tag size={14} />
-                  <span className="text-[10px] font-black uppercase tracking-wider">Format</span>
-                </div>
-                <div className="text-lg font-black">{item.mediaType || 'N/A'}</div>
-              </div>
-              <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
-                <div className="flex items-center gap-2 text-gray-500 mb-1">
-                  <Calendar size={14} />
-                  <span className="text-[10px] font-black uppercase tracking-wider">Watched</span>
-                </div>
-                <div className="text-sm font-bold">{item.customData.dateWatched || 'Never'}</div>
-              </div>
+              
+              {collection?.type === 'Books' ? (
+                <>
+                  <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
+                    <div className="flex items-center gap-2 text-gray-500 mb-1">
+                      <ShieldCheck size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-wider">Genre</span>
+                    </div>
+                    <div className="text-sm font-black truncate">{item.customData.genre || 'NR'}</div>
+                  </div>
+                  <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
+                    <div className="flex items-center gap-2 text-gray-500 mb-1">
+                      <Tag size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-wider">Author</span>
+                    </div>
+                    <div className="text-sm font-black truncate">{item.customData.author || 'N/A'}</div>
+                  </div>
+                  <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
+                    <div className="flex items-center gap-2 text-gray-500 mb-1">
+                      <Calendar size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-wider">Read</span>
+                    </div>
+                    <div className="text-sm font-bold">{item.customData.dateRead || 'Never'}</div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
+                    <div className="flex items-center gap-2 text-gray-500 mb-1">
+                      <ShieldCheck size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-wider">Rating</span>
+                    </div>
+                    <div className="text-lg font-black">{item.customData.contentRating || 'NR'}</div>
+                  </div>
+                  <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
+                    <div className="flex items-center gap-2 text-gray-500 mb-1">
+                      <Tag size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-wider">Format</span>
+                    </div>
+                    <div className="text-lg font-black">{item.mediaType || 'N/A'}</div>
+                  </div>
+                  <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
+                    <div className="flex items-center gap-2 text-gray-500 mb-1">
+                      <Calendar size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-wider">Watched</span>
+                    </div>
+                    <div className="text-sm font-bold">{item.customData.dateWatched || 'Never'}</div>
+                  </div>
+                </>
+              )}
             </div>
           </section>
 

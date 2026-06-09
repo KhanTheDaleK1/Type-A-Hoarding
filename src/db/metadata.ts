@@ -6,6 +6,7 @@ export interface BarcodeResult {
   thumbnail?: string;
   description?: string;
   mediaType?: string;
+  genre?: string;
   source: string;
 }
 
@@ -69,6 +70,7 @@ export const fetchMetadataByBarcode = async (barcode: string): Promise<BarcodeRe
             year: b.publishedDate?.split('-')[0],
             thumbnail: b.imageLinks?.thumbnail || b.imageLinks?.smallThumbnail,
             description: b.description,
+            genre: b.categories?.join(', '),
             mediaType: 'Book',
             source: 'Google'
           };
