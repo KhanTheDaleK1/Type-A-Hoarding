@@ -128,37 +128,37 @@ const CollectionView: React.FC = () => {
           >
             <Shuffle size={20} />
           </button>
-          <div className="flex bg-bg-secondary rounded-lg p-1 gap-1">
+          <div className="flex bg-bg-secondary rounded-lg p-1">
             <button 
-              className={`icon-button ${viewMode === 'compact' ? 'accent' : ''}`}
+              className={`icon-button !min-w-[40px] !min-height-[40px] ${viewMode === 'compact' ? 'accent' : ''}`}
               onClick={() => setViewMode('compact')}
             >
-              <List size={20} />
+              <List size={18} />
             </button>
             <button 
-              className={`icon-button ${viewMode === 'grid' ? 'accent' : ''}`}
+              className={`icon-button !min-w-[40px] !min-height-[40px] ${viewMode === 'grid' ? 'accent' : ''}`}
               onClick={() => setViewMode('grid')}
             >
-              <Grid size={20} />
+              <Grid size={18} />
             </button>
             <button 
-              className={`icon-button ${viewMode === 'detailed' ? 'accent' : ''}`}
+              className={`icon-button !min-w-[40px] !min-height-[40px] ${viewMode === 'detailed' ? 'accent' : ''}`}
               onClick={() => setViewMode('detailed')}
             >
-              <LayoutList size={20} />
+              <LayoutList size={18} />
             </button>
           </div>
           <button 
             className={`icon-button ${showFilters ? 'accent' : ''}`} 
             onClick={() => setShowFilters(!showFilters)}
           >
-            <Filter size={24} />
+            <Filter size={20} />
           </button>
           <button 
-            className="icon-button accent w-14 h-14 flex items-center justify-center rounded-2xl shadow-xl active:scale-95 transition-transform"
+            className="icon-button accent shadow-xl"
             onClick={() => setShowAddModal(true)}
           >
-            <Plus size={32} />
+            <Plus size={28} />
           </button>
         </div>
       </header>

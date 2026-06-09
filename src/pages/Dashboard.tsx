@@ -78,17 +78,17 @@ const Dashboard: React.FC = () => {
           </div>
           <button 
             onClick={() => setShowScanner(true)}
-            className="icon-button p-3 bg-bg-secondary rounded-2xl border border-border hover:bg-border transition-all"
+            className="icon-button bg-bg-secondary border border-border"
             title="Scan Collection QR"
           >
             <Camera size={24} />
           </button>
-          <Link to="/settings" className="icon-button p-3 bg-bg-secondary rounded-2xl border border-border hover:bg-border transition-all">
+          <Link to="/settings" className="icon-button bg-bg-secondary border border-border" title="Settings">
             <SettingsIcon size={24} />
           </Link>
           <button 
             onClick={() => setEditingCollection('new')}
-            className="icon-button accent p-3 rounded-2xl shadow-lg active:scale-95 transition-transform"
+            className="icon-button accent shadow-lg"
           >
             <Plus size={24} />
           </button>

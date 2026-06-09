@@ -165,15 +165,16 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2">
                 <div>
-                  <label className="block text-xs font-bold uppercase opacity-50 mb-1">Media Type</label>
-                  <div className="flex flex-wrap gap-1">
+                  <label className="block text-xs font-bold uppercase opacity-50 mb-2">Media Type</label>
+                  <div className="flex flex-wrap gap-2">
                     {['DVD', 'VHS', 'Blu-ray', '4K', 'Digital'].map(type => (
                       <button 
                         key={type}
+                        type="button"
                         onClick={() => setFormData({ ...formData, mediaType: type })}
-                        className={`px-2 py-1 text-[10px] font-bold rounded border ${formData.mediaType === type ? 'bg-accent text-white border-accent' : 'bg-bg-secondary border-border opacity-60'}`}
+                        className={`px-4 py-3 text-xs font-black rounded-xl border transition-all ${formData.mediaType === type ? 'bg-accent text-white border-accent shadow-md scale-105' : 'bg-bg-secondary border-border opacity-70'}`}
                       >
                         {type}
                       </button>
@@ -272,16 +273,16 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase opacity-50 mb-1">Images ({formData.images?.length || 0}/4)</label>
-            <div className="flex gap-2 mb-2 overflow-x-auto pb-2">
+            <label className="block text-xs font-bold uppercase opacity-50 mb-2">Images ({formData.images?.length || 0}/4)</label>
+            <div className="flex gap-3 mb-2 overflow-x-auto pb-4">
               {formData.images?.map((img, i) => (
-                <div key={i} className="relative w-20 h-20 flex-shrink-0">
-                  <img src={img} className="w-full h-full object-cover rounded-lg border border-border" alt="" />
+                <div key={i} className="relative w-24 h-24 flex-shrink-0">
+                  <img src={img} className="w-full h-full object-cover rounded-xl border border-border shadow-sm" alt="" />
                   <button 
                     onClick={() => setFormData({ ...formData, images: formData.images?.filter((_, idx) => idx !== i) })}
-                    className="absolute -top-1 -right-1 bg-danger text-white rounded-full p-1 shadow-lg"
+                    className="absolute -top-2 -right-2 bg-danger text-white rounded-full p-2 shadow-xl active:scale-75 transition-all"
                   >
-                    <X size={12} />
+                    <X size={16} />
                   </button>
                 </div>
               ))}
@@ -289,14 +290,14 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
                 <>
                   <button 
                     onClick={() => setShowCamera(true)}
-                    className="w-20 h-20 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-accent hover:bg-accent/5 transition-all"
+                    className="w-24 h-24 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-accent hover:bg-accent/5 transition-all active:scale-95"
                   >
-                    <Camera size={20} />
-                    <span className="text-[8px] font-black uppercase">Take Photo</span>
+                    <Camera size={24} className="text-accent" />
+                    <span className="text-[9px] font-black uppercase tracking-tighter">Photo</span>
                   </button>
-                  <label className="w-20 h-20 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-accent hover:bg-accent/5 transition-all">
-                    <Plus size={20} />
-                    <span className="text-[8px] font-black uppercase">Upload</span>
+                  <label className="w-24 h-24 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-accent hover:bg-accent/5 transition-all active:scale-95">
+                    <Plus size={24} className="text-accent" />
+                    <span className="text-[9px] font-black uppercase tracking-tighter">Upload</span>
                     <input 
                       type="file" 
                       accept="image/*" 

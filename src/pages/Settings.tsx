@@ -175,30 +175,30 @@ const Settings: React.FC = () => {
         <section>
           <h2 className="text-sm font-bold uppercase tracking-widest opacity-50 mb-4">Appearance</h2>
           <div className="settings-list">
-            <div className="settings-item flex justify-between">
+            <div className="settings-item flex justify-between py-4">
               <div className="flex items-center gap-4">
-                {theme === 'light' ? <Sun size={20} /> : <Moon size={20} />}
-                <span>Dark Mode</span>
+                {theme === 'light' ? <Sun size={24} /> : <Moon size={24} />}
+                <span className="font-bold">Dark Mode</span>
               </div>
               <button 
-                className={`w-12 h-6 rounded-full transition-colors relative ${theme === 'dark' ? 'bg-accent' : 'bg-border'}`}
+                className={`w-14 h-8 rounded-full transition-colors relative shadow-inner ${theme === 'dark' ? 'bg-accent' : 'bg-border'}`}
                 onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
               >
-                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${theme === 'dark' ? 'left-7' : 'left-1'}`} />
+                <div className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all ${theme === 'dark' ? 'left-7' : 'left-1'}`} />
               </button>
             </div>
 
-            <div className="settings-item flex-col items-start gap-4">
+            <div className="settings-item flex-col items-start gap-6 py-6">
               <div className="flex items-center gap-4">
-                <Palette size={20} />
-                <span>Accent Theme</span>
+                <Palette size={24} />
+                <span className="font-bold">Accent Theme</span>
               </div>
-              <div className="flex gap-3 w-full justify-between px-2">
+              <div className="flex gap-4 w-full justify-between px-2 overflow-x-auto pb-2">
                 {accentThemes.map(t => (
                   <button
                     key={t.id}
                     onClick={() => setAccent(t.id)}
-                    className={`w-8 h-8 rounded-full border-4 transition-transform ${accent === t.id ? 'scale-125 border-white shadow-lg' : 'border-transparent opacity-60'}`}
+                    className={`w-10 h-10 flex-shrink-0 rounded-full border-4 transition-all active:scale-110 ${accent === t.id ? 'scale-125 border-white shadow-xl ring-2 ring-accent' : 'border-transparent opacity-60'}`}
                     style={{ backgroundColor: t.color }}
                     title={t.name}
                   />

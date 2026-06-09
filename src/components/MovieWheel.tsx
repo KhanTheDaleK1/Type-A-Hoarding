@@ -36,10 +36,10 @@ const MovieWheel: React.FC<MovieWheelProps> = ({ items, onClose, onWatched }) =>
   };
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 overflow-hidden">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 overflow-hidden text-white">
       <button 
         onClick={onClose}
-        className="absolute top-6 right-6 p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all z-[151]"
+        className="absolute top-6 right-6 icon-button bg-white/10 hover:bg-white/20 transition-all z-[151]"
       >
         <X size={28} />
       </button>

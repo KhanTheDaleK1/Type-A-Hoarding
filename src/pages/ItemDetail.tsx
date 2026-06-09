@@ -25,8 +25,8 @@ const ItemDetail: React.FC = () => {
   return (
     <div className="item-detail max-w-4xl mx-auto">
       <header className="view-header sticky top-0 bg-bg/80 backdrop-blur-md z-10 py-4 mb-8 border-b border-border flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link to={`/collection/${item.collectionId}`} className="p-2 hover:bg-bg-secondary rounded-full transition-colors">
+        <div className="flex items-center gap-2">
+          <Link to={`/collection/${item.collectionId}`} className="icon-button">
             <ArrowLeft size={24} />
           </Link>
           <h1 className="text-xl font-black tracking-tight">{item.title}</h1>
@@ -34,13 +34,13 @@ const ItemDetail: React.FC = () => {
         <div className="flex gap-2">
           <button 
             onClick={() => setShowEditModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-bg-secondary hover:bg-border rounded-xl font-bold text-sm transition-all"
+            className="flex items-center gap-2 px-5 py-3 bg-bg-secondary hover:bg-border rounded-2xl font-bold text-sm transition-all shadow-sm"
           >
             <Edit2 size={16} /> Edit
           </button>
           <button 
             onClick={handleDelete}
-            className="flex items-center gap-2 px-4 py-2 bg-danger/10 hover:bg-danger text-danger hover:text-white rounded-xl font-bold text-sm transition-all"
+            className="flex items-center gap-2 px-5 py-3 bg-danger/10 hover:bg-danger text-danger hover:text-white rounded-2xl font-bold text-sm transition-all shadow-sm"
           >
             <Trash2 size={16} /> Delete
           </button>
