@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   ArrowLeft, Download, Upload, Trash2, 
-  Sun, Moon, Palette, Cloud, RefreshCw, CheckCircle2, AlertCircle
+  Sun, Moon, Palette, Cloud, RefreshCw, CheckCircle2, AlertCircle, BookOpen
 } from 'lucide-react';
 import { db } from '../db/db';
 import { syncService, type GitHubSyncConfig } from '../db/sync';
+import { importGoodreadsCSV } from '../db/import';
 
 const Settings: React.FC = () => {
   const [theme, setTheme] = useState(() => localStorage.getItem('hoarding_theme') || 'light');
@@ -51,6 +52,39 @@ const Settings: React.FC = () => {
       setSyncStatus({ type: 'success', msg: 'Successfully restored from GitHub!' });
     } catch (e: any) {
       setSyncStatus({ type: 'error', msg: e.message });
+    }
+  };
+
+  const handleGoodreadsImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // First, find or create a 'Books' collection
+    let booksCollection = await db.collections.where('type').equals('Books').first();
+    if (!booksCollection) {
+      const id = crypto.randomUUID();
+      await db.collections.add({
+        id,
+        name: 'Goodreads Library',
+        type: 'Books',
+        createdAt: Date.now(),
+        customFields: [
+          { id: 'author', name: 'Author', type: 'text' },
+          { id: 'isbn', name: 'ISBN', type: 'text' },
+          { id: 'year', name: 'Year Published', type: 'number' }
+        ]
+      });
+      booksCollection = await db.collections.get(id);
+    }
+
+    if (!booksCollection) return;
+
+    setSyncStatus({ type: 'loading', msg: 'Importing Goodreads CSV...' });
+    try {
+      const count = await importGoodreadsCSV(file, booksCollection.id);
+      setSyncStatus({ type: 'success', msg: `Successfully imported ${count} books!` });
+    } catch (err) {
+      setSyncStatus({ type: 'error', msg: 'Failed to import CSV.' });
     }
   };
 
@@ -237,6 +271,11 @@ const Settings: React.FC = () => {
               <Upload size={20} />
               <span>Import Database (JSON)</span>
               <input type="file" accept=".json" className="hidden" onChange={importData} />
+            </label>
+            <label className="settings-item cursor-pointer">
+              <BookOpen size={20} className="text-accent" />
+              <span>Import Goodreads (CSV)</span>
+              <input type="file" accept=".csv" className="hidden" onChange={handleGoodreadsImport} />
             </label>
             <button className="settings-item danger" onClick={clearAll}>
               <Trash2 size={20} />
