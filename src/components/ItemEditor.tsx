@@ -3,6 +3,7 @@ import type { Collection, Item } from '../types';
 import { db } from '../db/db';
 import { X, Camera, Save, Plus } from 'lucide-react';
 import Scanner from './Scanner';
+import CameraCapture from './CameraCapture';
 import { fetchMetadataByBarcode } from '../db/metadata';
 
 interface ItemEditorProps {
@@ -13,6 +14,7 @@ interface ItemEditorProps {
 
 const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) => {
   const [showScanner, setShowScanner] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
   const [formData, setFormData] = useState<Partial<Item>>(item || {
     collectionId: collection.id,
     title: '',
@@ -256,24 +258,34 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
                 </div>
               ))}
               {(formData.images?.length || 0) < 4 && (
-                <label className="w-20 h-20 border-2 border-dashed border-border rounded-lg flex items-center justify-center cursor-pointer hover:border-accent hover:bg-accent/5 transition-all">
-                  <Plus size={24} />
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    className="hidden" 
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          setFormData({ ...formData, images: [...(formData.images || []), reader.result as string].slice(0, 4) });
-                        };
-                        reader.readAsDataURL(file);
-                      }
-                    }}
-                  />
-                </label>
+                <>
+                  <button 
+                    onClick={() => setShowCamera(true)}
+                    className="w-20 h-20 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-accent hover:bg-accent/5 transition-all"
+                  >
+                    <Camera size={20} />
+                    <span className="text-[8px] font-black uppercase">Take Photo</span>
+                  </button>
+                  <label className="w-20 h-20 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-accent hover:bg-accent/5 transition-all">
+                    <Plus size={20} />
+                    <span className="text-[8px] font-black uppercase">Upload</span>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setFormData({ ...formData, images: [...(formData.images || []), reader.result as string].slice(0, 4) });
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                </>
               )}
             </div>
           </div>
@@ -295,6 +307,16 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
           onScan={handleScan} 
           onClose={() => setShowScanner(false)} 
           status={scanStatus}
+        />
+      )}
+
+      {showCamera && (
+        <CameraCapture 
+          onCapture={(img) => {
+            setFormData(prev => ({ ...prev, images: [...(prev.images || []), img].slice(0, 4) }));
+            setShowCamera(false);
+          }}
+          onClose={() => setShowCamera(false)}
         />
       )}
     </div>
