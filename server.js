@@ -1,0 +1,844 @@
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+import express from 'express';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+const TMDB_API_KEY = 'd08472ce6060f87031d77b5f6fc08c9e';
+const OMDB_API_KEY = '8657ba09';
+
+// Setup cache directory and file
+const CACHE_DIR = path.join(__dirname, 'data');
+const CACHE_FILE = path.join(CACHE_DIR, 'cache.json');
+
+if (!fs.existsSync(CACHE_DIR)) {
+  fs.mkdirSync(CACHE_DIR);
+}
+
+let cache = {};
+if (fs.existsSync(CACHE_FILE)) {
+  try {
+    cache = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
+  } catch (err) {
+    console.error('Failed to parse cache file, starting fresh:', err);
+    cache = {};
+  }
+}
+
+// Helper to save cache to disk
+function saveCache() {
+  try {
+    fs.writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Failed to save cache file:', err);
+  }
+}
+
+// Search engine scraping fallback to get product title from barcode
+async function resolveTitleFromSearchEngine(barcode) {
+  const url = `https://html.duckduckgo.com/html/?q=${barcode}`;
+  try {
+    console.log(`[Search Scraper] Fetching DuckDuckGo URL: ${url}`);
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+      }
+    });
+
+    if (res.ok) {
+      const html = await res.text();
+      const linkRegex = /class="result__a"[^>]*>([\s\S]*?)<\/a>/g;
+      const titles = [];
+      let match;
+      while ((match = linkRegex.exec(html)) !== null) {
+        let title = match[1].trim()
+          .replace(/<[^>]*>/g, '') // strip HTML tags
+          .replace(/\s+/g, ' ');
+        titles.push(title);
+      }
+
+      console.log(`[Search Scraper] Found ${titles.length} titles on DuckDuckGo.`);
+
+      if (titles.length === 0) {
+        console.warn(`[Search Scraper] No results found on DDG. HTML length: ${html.length}. Snippet: ${html.substring(0, 300).replace(/\s+/g, ' ')}`);
+        return null;
+      }
+      
+      const candidates = [];
+      
+      for (let rawTitle of titles) {
+        const titleLower = rawTitle.toLowerCase();
+        
+        // Skip spam/reverse lookup/tracking sites entirely
+        const isSpam = [
+          'phone', 'number', 'caller', 'scam', 'reverse', 'spokeo', 'robokiller', 
+          'whocalls', 'carrier', 'junkcall', 'tracking', 'package', '17track', 
+          'parcel', 'ups', 'usps', 'fedex', 'dhl', 'whitepages', 'yellowpages',
+          'check status', 'caller id', 'who calls', 'lookup tool', 'search by',
+          'whocalled', 'callers', 'area code', 'spam call'
+        ].some(keyword => titleLower.includes(keyword));
+        
+        if (isSpam) {
+          continue;
+        }
+
+        // Clean the title
+        let cleaned = rawTitle;
+        
+        // Remove barcode numbers if present
+        cleaned = cleaned.replace(new RegExp(barcode, 'g'), '');
+        
+        // Remove common retailer suffixes and audio/video specs from candidate selection
+        cleaned = cleaned
+          .replace(/\b(at Target|eBay|Amazon|Walmart|Best Buy|Shop|Silver Platters|Alibris|Movies Unlimited|ccvideo|DeepDiscount|Waterloo Records|daddykool)\b/gi, '')
+          .replace(/[-|:|—|\|]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        // Calculate score
+        let score = 0;
+        
+        // Boost for containing media-related terms
+        const mediaKeywords = [
+          'dvd', 'blu-ray', 'bluray', 'cd', 'vinyl', 'book', 'laserdisc', 
+          'vhs', 'album', 'soundtrack', 'edition', 'novel', 'hardcover', 
+          'paperback', 'movie', 'film', 'audio'
+        ];
+        mediaKeywords.forEach(keyword => {
+          if (titleLower.includes(keyword)) {
+            score += 10;
+          }
+        });
+        
+        // Boost for containing the barcode in raw title (proves it's specifically about this product)
+        if (titleLower.includes(barcode)) {
+          score += 15;
+        }
+        
+        // Length penalty/boost (ideal title length is between 15 and 65)
+        if (cleaned.length >= 15 && cleaned.length <= 65) {
+          score += 5;
+        } else if (cleaned.length < 5) {
+          score -= 20; // far too short
+        }
+
+        if (cleaned.length > 5) {
+          candidates.push({ cleaned, score, original: rawTitle });
+        }
+      }
+
+      if (candidates.length === 0) {
+        console.warn('[Search Scraper] No candidate titles passed the non-spam filters.');
+        if (titles.length > 0) {
+          console.log(`[Search Scraper] Falling back to first scraped title: "${titles[0]}"`);
+          return titles[0];
+        }
+        return null;
+      }
+
+      // Sort by score descending
+      candidates.sort((a, b) => b.score - a.score);
+      console.log('[Search Scraper] Top Candidates:', candidates.slice(0, 3).map(c => `[Score: ${c.score}] ${c.cleaned} (from: "${c.original}")`));
+      
+      return candidates[0].cleaned;
+    } else {
+      console.warn(`[Search Scraper] DuckDuckGo returned non-OK status: ${res.status}`);
+    }
+  } catch (err) {
+    console.error('[resolveTitleFromSearchEngine Error]', err.message);
+  }
+  return null;
+}
+
+// Serve static files from the 'dist' directory
+app.use(express.static(path.join(__dirname, 'dist')));
+app.use(express.json());
+
+// API route for barcode lookup
+app.get('/api/lookup/:barcode', async (req, res) => {
+  let barcode = req.params.barcode.trim();
+  const isCustomId = barcode.startsWith('tmdb_') || barcode.startsWith('mb_');
+  if (!isCustomId) {
+    barcode = barcode.replace(/[^0-9]/g, '');
+  }
+
+  if (!barcode) {
+    return res.status(400).json({ success: false, error: 'Invalid identifier format.' });
+  }
+
+  // Check cache first
+  if (cache[barcode]) {
+    console.log(`[Cache Hit] Barcode ${barcode}`);
+    return res.json(cache[barcode]);
+  }
+
+  console.log(`[Cache Miss] Querying APIs for barcode ${barcode}`);
+  
+  try {
+    // A. Handle TMDb Direct lookup (Movie searched by title)
+    if (barcode.startsWith('tmdb_')) {
+      try {
+        const movieId = barcode.replace('tmdb_', '');
+        console.log(`[TMDb Direct] Querying Movie ID: ${movieId}`);
+        const tmdbDetailRes = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${TMDB_API_KEY}&append_to_response=credits`);
+        
+        if (tmdbDetailRes.ok) {
+          const tmdbDetails = await tmdbDetailRes.json();
+          
+          let result = {
+            success: true,
+            source: 'TMDb',
+            barcode,
+            title: tmdbDetails.title || 'Unknown Movie',
+            subtitle: tmdbDetails.tagline || '',
+            creator: tmdbDetails.credits?.crew?.find(c => c.job === 'Director')?.name || 'Unknown Director',
+            type: 'movie',
+            description: tmdbDetails.overview || 'No description available.',
+            thumbnail: tmdbDetails.poster_path ? `https://image.tmdb.org/t/p/w500${tmdbDetails.poster_path}` : '',
+            publisher: tmdbDetails.production_companies?.[0]?.name || 'Unknown Studio',
+            publishedDate: tmdbDetails.release_date ? tmdbDetails.release_date.substring(0, 4) : 'N/A',
+            extra: {
+              backdrop: tmdbDetails.backdrop_path ? `https://image.tmdb.org/t/p/w1280${tmdbDetails.backdrop_path}` : '',
+              genres: tmdbDetails.genres?.map(g => g.name) || [],
+              runtime: tmdbDetails.runtime ? `${tmdbDetails.runtime} min` : '',
+              cast: tmdbDetails.credits?.cast?.slice(0, 5).map(c => c.name) || [],
+              tmdbRating: tmdbDetails.vote_average || null
+            }
+          };
+
+          try {
+            const omdbRes = await fetch(`http://www.omdbapi.com/?t=${encodeURIComponent(result.title)}&apikey=${OMDB_API_KEY}`);
+            if (omdbRes.ok) {
+              const omdbData = await omdbRes.json();
+              if (omdbData.Response === 'True') {
+                result.extra.rated = omdbData.Rated || 'N/A';
+                result.extra.ratings = omdbData.Ratings || [];
+                result.extra.boxOffice = omdbData.BoxOffice || 'N/A';
+                result.extra.imdbRating = omdbData.imdbRating || null;
+              }
+            }
+          } catch (e) {
+            console.warn('OMDb lookup failed during TMDb direct lookup:', e.message);
+          }
+
+          cache[barcode] = result;
+          saveCache();
+          return res.json(result);
+        }
+      } catch (err) {
+        console.error('[TMDb Direct Error]', err.message);
+      }
+    }
+
+    // B. Handle MusicBrainz Direct lookup (Music searched by title)
+    if (barcode.startsWith('mb_')) {
+      try {
+        const mbid = barcode.replace('mb_', '');
+        console.log(`[MusicBrainz Direct] Querying Release ID: ${mbid}`);
+        const mbRes = await fetch(`https://musicbrainz.org/ws/2/release/${mbid}?fmt=json&inc=artist-credits+labels`, {
+          headers: { 'User-Agent': 'AuraScan/1.0.0 (contact@example.com)' }
+        });
+        
+        if (mbRes.ok) {
+          const rel = await mbRes.json();
+          let thumbnail = '';
+          
+          try {
+            const caRes = await fetch(`https://coverartarchive.org/release/${mbid}`);
+            if (caRes.ok) {
+              const caData = await caRes.json();
+              thumbnail = caData.images?.[0]?.image || '';
+            }
+          } catch (e) {
+            console.warn('Cover Art Archive lookup failed:', e.message);
+          }
+
+          const result = {
+            success: true,
+            source: 'MusicBrainz',
+            barcode,
+            title: rel.title || 'Unknown Album',
+            subtitle: '',
+            creator: rel['artist-credit']?.map(ac => ac.name).join(', ') || 'Unknown Artist',
+            type: 'music',
+            description: `Release Group: ${rel['release-group']?.title || 'N/A'}. Country: ${rel.country || 'N/A'}.`,
+            thumbnail,
+            publisher: rel['label-info']?.map(li => li.label?.name).filter(Boolean).join(', ') || 'Unknown Label',
+            publishedDate: rel.date ? rel.date.substring(0, 4) : 'N/A',
+            extra: {
+              mbid,
+              status: rel.status || 'Official',
+              trackCount: rel.media?.[0]?.['track-count'] || null
+            }
+          };
+
+          cache[barcode] = result;
+          saveCache();
+          return res.json(result);
+        }
+      } catch (err) {
+        console.error('[MusicBrainz Direct Error]', err.message);
+      }
+    }
+
+    // 1. Try Book Lookup (Open Library) if it matches standard ISBN lengths (10 or 13)
+    if (barcode.length === 10 || barcode.length === 13) {
+      try {
+        console.log(`[Open Library] Querying ISBN: ${barcode}`);
+        const openLibraryRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${barcode}&jscmd=data&format=json`);
+        
+        if (openLibraryRes.ok) {
+          const data = await openLibraryRes.json();
+          const key = `ISBN:${barcode}`;
+          
+          if (data[key]) {
+            const bookData = data[key];
+            const result = {
+              success: true,
+              source: 'Open Library',
+              barcode,
+              title: bookData.title || 'Unknown Title',
+              subtitle: bookData.subtitle || '',
+              creator: bookData.authors?.map(a => a.name).join(', ') || 'Unknown Author',
+              type: 'book',
+              description: bookData.notes || bookData.excerpts?.map(e => e.text).join(' ') || 'No description available.',
+              thumbnail: bookData.cover?.medium || bookData.cover?.large || '',
+              publisher: bookData.publishers?.map(p => p.name).join(', ') || 'Unknown Publisher',
+              publishedDate: bookData.published_date || 'Unknown Date',
+              extra: {
+                pages: bookData.number_of_pages || null,
+                subjects: bookData.subjects?.map(s => s.name).slice(0, 5) || [],
+                openLibraryUrl: bookData.url || ''
+              }
+            };
+            
+            cache[barcode] = result;
+            saveCache();
+            return res.json(result);
+          }
+        }
+      } catch (bookErr) {
+        console.error('[Open Library Error]', bookErr.message);
+      }
+    }
+
+    // 2. Try Music Lookup (MusicBrainz Cascade) for general UPC/EAN barcodes
+    try {
+      console.log(`[MusicBrainz Cascade] Querying barcode: ${barcode}`);
+      const mbRes = await fetch(`https://musicbrainz.org/ws/2/release?query=barcode:${barcode}&fmt=json`, {
+        headers: { 'User-Agent': 'AuraScan/1.0.0 (contact@example.com)' }
+      });
+
+      if (mbRes.ok) {
+        const mbData = await mbRes.json();
+        if (mbData.releases && mbData.releases.length > 0) {
+          const rel = mbData.releases[0];
+          const mbid = rel.id;
+          let thumbnail = '';
+
+          try {
+            const caRes = await fetch(`https://coverartarchive.org/release/${mbid}`);
+            if (caRes.ok) {
+              const caData = await caRes.json();
+              thumbnail = caData.images?.[0]?.image || '';
+            }
+          } catch (caErr) {
+            console.warn('[Cover Art Cascade Error]', caErr.message);
+          }
+
+          const result = {
+            success: true,
+            source: 'MusicBrainz',
+            barcode,
+            title: rel.title || 'Unknown Title',
+            subtitle: '',
+            creator: rel['artist-credit']?.map(ac => ac.name).join(', ') || 'Unknown Artist',
+            type: 'music',
+            description: `A music release cataloged on MusicBrainz. Status: ${rel.status || 'Official'}.`,
+            thumbnail,
+            publisher: rel['label-info']?.map(li => li.label?.name).filter(Boolean).join(', ') || 'Unknown Label',
+            publishedDate: rel.date ? rel.date.substring(0, 4) : 'N/A',
+            extra: {
+              mbid,
+              category: 'Music',
+              tracksCount: rel.media?.[0]?.['track-count'] || null
+            }
+          };
+
+          cache[barcode] = result;
+          saveCache();
+          return res.json(result);
+        }
+      }
+    } catch (mbErr) {
+      console.warn('[MusicBrainz Cascade Error]', mbErr.message);
+    }
+
+    // 2. Try UpcItemDb for general lookup (movies, music, fallback for books)
+    try {
+      console.log(`[UpcItemDb] Querying UPC: ${barcode}`);
+      const upcRes = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`, {
+        headers: {
+          'Accept': 'application/json',
+          'Accept-Encoding': 'gzip, deflate'
+        }
+      });
+      
+      if (upcRes.ok) {
+        const data = await upcRes.json();
+        
+        if (data.code === 'OK' && data.items && data.items.length > 0) {
+          const item = data.items[0];
+          
+          // Determine type based on category hierarchy
+          let type = 'product';
+          const category = (item.category || '').toLowerCase();
+          const title = (item.title || '').toLowerCase();
+          
+          if (category.includes('book') || category.includes('literature')) {
+            type = 'book';
+          } else if (
+            category.includes('music') || 
+            category.includes('cd') || 
+            category.includes('vinyl') || 
+            category.includes('audio') || 
+            category.includes('album') ||
+            title.includes(' vinyl') ||
+            title.includes(' (cd)')
+          ) {
+            type = 'music';
+          } else if (
+            category.includes('movie') || 
+            category.includes('dvd') || 
+            category.includes('blu-ray') || 
+            category.includes('video') || 
+            category.includes('film') ||
+            title.includes(' dvd') ||
+            title.includes(' blu-ray')
+          ) {
+            type = 'movie';
+          } else if (category.includes('game') || category.includes('software')) {
+            type = 'game';
+          }
+          
+          // Extract creator
+          let creator = item.brand || item.publisher || '';
+          if (!creator && type === 'music') {
+            creator = item.artist || 'Unknown Artist';
+          } else if (!creator && type === 'movie') {
+            creator = item.director || 'Unknown Director';
+          } else if (!creator && type === 'book') {
+            creator = item.author || 'Unknown Author';
+          }
+          if (!creator) {
+            creator = 'N/A';
+          }
+
+          let result = {
+            success: true,
+            source: 'UPCitemdb',
+            barcode,
+            title: item.title || 'Unknown Title',
+            subtitle: '',
+            creator,
+            type,
+            description: item.description || 'No description available.',
+            thumbnail: item.images?.[0] || '',
+            publisher: item.publisher || item.brand || 'Unknown',
+            publishedDate: 'N/A',
+            extra: {
+              category: item.category || 'N/A',
+              offers: item.offers?.slice(0, 3).map(o => ({
+                merchant: o.merchant,
+                price: o.price,
+                link: o.link
+              })) || [],
+              model: item.model || '',
+              asin: item.asin || ''
+            }
+          };
+
+          // Enrich movies with TMDb and OMDb APIs
+          if (type === 'movie') {
+            try {
+              let searchTitle = item.title || '';
+              // Clean up title (remove formats, years, distributor details)
+              searchTitle = searchTitle
+                .replace(/\b(dvd|blu-ray|bluray|brd|ultra hd|4k|combo pack|special edition|collector's edition|anniversary edition|widescreen|fullscreen|steelbook|sensormatic|disc|1-disc|2-disc|digital video disc|digitally remastered)\b/gi, '')
+                .replace(/[\[\({].*?[\]\)}]/g, '')
+                .replace(/\b(lucasfilm|disney|hasbro|warner bros|warner|universal studios|universal|paramount|sony pictures|sony|columbia pictures|mgm|20th century fox|20th century studios|fox|hbo|bbc|criterion collection|criterion|mill creek)\b/gi, '')
+                .replace(/ - /g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+                
+              console.log(`[Movie Enrichment] Querying TMDb & OMDb for: "${searchTitle}"`);
+              
+              const [tmdbSearchRes, omdbRes] = await Promise.all([
+                fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(searchTitle)}&api_key=${TMDB_API_KEY}`),
+                fetch(`http://www.omdbapi.com/?t=${encodeURIComponent(searchTitle)}&apikey=${OMDB_API_KEY}`)
+              ]);
+
+              let tmdbDetails = null;
+              if (tmdbSearchRes.ok) {
+                const tmdbSearchData = await tmdbSearchRes.json();
+                if (tmdbSearchData.results && tmdbSearchData.results.length > 0) {
+                  const movieId = tmdbSearchData.results[0].id;
+                  const tmdbDetailRes = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${TMDB_API_KEY}&append_to_response=credits`);
+                  if (tmdbDetailRes.ok) {
+                    tmdbDetails = await tmdbDetailRes.json();
+                  }
+                }
+              }
+
+              let omdbData = null;
+              if (omdbRes.ok) {
+                const oData = await omdbRes.json();
+                if (oData.Response === 'True') {
+                  omdbData = oData;
+                }
+              }
+
+              // Apply enrichment
+              if (tmdbDetails) {
+                result.source = 'TMDb & UPCitemdb';
+                result.title = tmdbDetails.title || result.title;
+                result.subtitle = tmdbDetails.tagline || '';
+                
+                // Get Director
+                const director = tmdbDetails.credits?.crew?.find(c => c.job === 'Director')?.name;
+                if (director) result.creator = director;
+                
+                result.description = tmdbDetails.overview || result.description;
+                if (tmdbDetails.poster_path) {
+                  result.thumbnail = `https://image.tmdb.org/t/p/w500${tmdbDetails.poster_path}`;
+                }
+                
+                result.publishedDate = tmdbDetails.release_date ? tmdbDetails.release_date.substring(0, 4) : result.publishedDate;
+                
+                // Add TMDB specific details
+                result.extra.backdrop = tmdbDetails.backdrop_path ? `https://image.tmdb.org/t/p/w1280${tmdbDetails.backdrop_path}` : '';
+                result.extra.genres = tmdbDetails.genres?.map(g => g.name) || [],
+                result.extra.runtime = tmdbDetails.runtime ? `${tmdbDetails.runtime} min` : '';
+                result.extra.cast = tmdbDetails.credits?.cast?.slice(0, 5).map(c => c.name) || [];
+                result.extra.tmdbRating = tmdbDetails.vote_average || null;
+              }
+
+              if (omdbData) {
+                if (!tmdbDetails) {
+                  // Fallback to OMDb if TMDb didn't find anything
+                  result.source = 'OMDb & UPCitemdb';
+                  result.title = omdbData.Title || result.title;
+                  result.creator = omdbData.Director !== 'N/A' ? omdbData.Director : result.creator;
+                  result.description = omdbData.Plot !== 'N/A' ? omdbData.Plot : result.description;
+                  if (omdbData.Poster && omdbData.Poster !== 'N/A') {
+                    result.thumbnail = omdbData.Poster;
+                  }
+                  result.publishedDate = omdbData.Year || result.publishedDate;
+                }
+                
+                result.extra.rated = omdbData.Rated || 'N/A';
+                result.extra.ratings = omdbData.Ratings || [];
+                result.extra.boxOffice = omdbData.BoxOffice || 'N/A';
+                result.extra.imdbRating = omdbData.imdbRating || null;
+              }
+
+            } catch (enrichErr) {
+              console.error('[Movie Enrichment Error]', enrichErr.message);
+            }
+          }
+
+          cache[barcode] = result;
+          saveCache();
+          return res.json(result);
+        } else if (data.code === 'INVALID_UPC') {
+          return res.status(400).json({ success: false, error: 'Invalid barcode checksum or format according to UPC standards.' });
+        } else {
+          console.warn(`[UpcItemDb] Non-OK JSON response: Code=${data.code}, Message=${data.message || 'N/A'}`);
+        }
+      } else {
+        // Handle rate limiting (429) or other errors from UpcItemDb
+        console.warn(`[UpcItemDb] HTTP Error: Status=${upcRes.status}`);
+      }
+    } catch (upcErr) {
+      console.error('[UpcItemDb Error]', upcErr.message);
+    }
+
+    // 4. CRITICAL FALLBACK: If UpcItemDb failed or was rate-limited, query DuckDuckGo search engine
+    console.log(`[Fallback] Querying search engine for barcode: ${barcode}`);
+    try {
+      const searchTitle = await resolveTitleFromSearchEngine(barcode);
+      if (searchTitle) {
+        console.log(`[Fallback] Resolved title: "${searchTitle}"`);
+        
+        let result = {
+          success: true,
+          source: 'Search Fallback',
+          barcode,
+          title: searchTitle,
+          subtitle: '',
+          creator: 'N/A',
+          type: 'product',
+          description: `Product details resolved via search engine fallback for barcode ${barcode}.`,
+          thumbnail: '',
+          publisher: 'Unknown',
+          publishedDate: 'N/A',
+          extra: {
+            category: 'General Product'
+          }
+        };
+
+        // Try movie lookups with TMDb & OMDb using the resolved title
+        try {
+          // Strip everything after ellipses, sidetracks
+          let movieSearchTitle = searchTitle;
+          const dotIndex = movieSearchTitle.indexOf('...');
+          if (dotIndex !== -1) {
+            movieSearchTitle = movieSearchTitle.substring(0, dotIndex);
+          }
+          movieSearchTitle = movieSearchTitle
+            .replace(/\b(dvd|blu-ray|bluray|brd|ultra hd|4k|combo pack|special edition|collector's edition|anniversary edition|widescreen|fullscreen|steelbook|sensormatic|disc|1-disc|2-disc|digital video disc|digitally remastered|laserdisc|ld|clv|vhs)\b/gi, '')
+            .replace(/[\[\({].*?[\]\)}]/g, '')
+            .replace(/\b(lucasfilm|disney|hasbro|warner bros|warner|universal studios|universal|paramount|sony pictures|sony|columbia pictures|mgm|20th century fox|20th century studios|fox|hbo|bbc|criterion collection|criterion|mill creek|ebay|amazon|target|walmart|best buy|database|wiki|review|shop|store|online|buy|price)\b/gi, '')
+            .replace(/[-|:|—|\||/]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          console.log(`[Fallback Movie Search] Searching TMDb & OMDb for: "${movieSearchTitle}"`);
+          
+          let tmdbSearchRes = await fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(movieSearchTitle)}&api_key=${TMDB_API_KEY}`);
+          let tmdbSearchData = tmdbSearchRes.ok ? await tmdbSearchRes.json() : null;
+          
+          let omdbRes = await fetch(`http://www.omdbapi.com/?t=${encodeURIComponent(movieSearchTitle)}&apikey=${OMDB_API_KEY}`);
+          let omdbData = omdbRes.ok ? await omdbRes.json() : null;
+
+          // Retry with first 5 words if no results found
+          if ((!tmdbSearchData || !tmdbSearchData.results || tmdbSearchData.results.length === 0) && (!omdbData || omdbData.Response !== 'True')) {
+            const words = movieSearchTitle.split(' ');
+            if (words.length > 5) {
+              const truncatedTitle = words.slice(0, 5).join(' ');
+              console.log(`[Fallback Movie Search Retry] No results for full title. Retrying with truncated title: "${truncatedTitle}"`);
+              
+              const [retryTmdbRes, retryOmdbRes] = await Promise.all([
+                fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(truncatedTitle)}&api_key=${TMDB_API_KEY}`),
+                fetch(`http://www.omdbapi.com/?t=${encodeURIComponent(truncatedTitle)}&apikey=${OMDB_API_KEY}`)
+              ]);
+              
+              if (retryTmdbRes.ok) {
+                const retryTmdbData = await retryTmdbRes.json();
+                if (retryTmdbData.results && retryTmdbData.results.length > 0) {
+                  tmdbSearchData = retryTmdbData;
+                }
+              }
+              if (retryOmdbRes.ok) {
+                const retryOmdbData = await retryOmdbRes.json();
+                if (retryOmdbData.Response === 'True') {
+                  omdbData = retryOmdbData;
+                }
+              }
+            }
+          }
+
+          let tmdbDetails = null;
+          if (tmdbSearchData && tmdbSearchData.results && tmdbSearchData.results.length > 0) {
+            const movieId = tmdbSearchData.results[0].id;
+            const tmdbDetailRes = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${TMDB_API_KEY}&append_to_response=credits`);
+            if (tmdbDetailRes.ok) {
+              tmdbDetails = await tmdbDetailRes.json();
+            }
+          }
+
+          if (omdbData && omdbData.Response !== 'True') {
+            omdbData = null;
+          }
+
+          if (tmdbDetails) {
+            result.source = 'TMDb (Fallback)';
+            result.title = tmdbDetails.title || result.title;
+            result.subtitle = tmdbDetails.tagline || '';
+            result.creator = tmdbDetails.credits?.crew?.find(c => c.job === 'Director')?.name || result.creator;
+            result.type = 'movie';
+            result.description = tmdbDetails.overview || result.description;
+            if (tmdbDetails.poster_path) {
+              result.thumbnail = `https://image.tmdb.org/t/p/w500${tmdbDetails.poster_path}`;
+            }
+            result.publishedDate = tmdbDetails.release_date ? tmdbDetails.release_date.substring(0, 4) : result.publishedDate;
+            result.extra = {
+              category: 'Media > Movies',
+              backdrop: tmdbDetails.backdrop_path ? `https://image.tmdb.org/t/p/w1280${tmdbDetails.backdrop_path}` : '',
+              genres: tmdbDetails.genres?.map(g => g.name) || [],
+              runtime: tmdbDetails.runtime ? `${tmdbDetails.runtime} min` : '',
+              cast: tmdbDetails.credits?.cast?.slice(0, 5).map(c => c.name) || [],
+              tmdbRating: tmdbDetails.vote_average || null
+            };
+          }
+
+          if (omdbData) {
+            if (!tmdbDetails) {
+              result.source = 'OMDb (Fallback)';
+              result.title = omdbData.Title || result.title;
+              result.creator = omdbData.Director !== 'N/A' ? omdbData.Director : result.creator;
+              result.type = 'movie';
+              result.description = omdbData.Plot !== 'N/A' ? omdbData.Plot : result.description;
+              if (omdbData.Poster && omdbData.Poster !== 'N/A') {
+                result.thumbnail = omdbData.Poster;
+              }
+              result.publishedDate = omdbData.Year || result.publishedDate;
+              result.extra = { category: 'Media > Movies' };
+            }
+            result.extra.rated = omdbData.Rated || 'N/A';
+            result.extra.ratings = omdbData.Ratings || [];
+            result.extra.boxOffice = omdbData.BoxOffice || 'N/A';
+            result.extra.imdbRating = omdbData.imdbRating || null;
+          }
+
+        } catch (enrichErr) {
+          console.error('[Fallback Enrichment Error]', enrichErr.message);
+        }
+
+        cache[barcode] = result;
+        saveCache();
+        return res.json(result);
+      }
+    } catch (fallbackErr) {
+      console.error('[Search Fallback Process Error]', fallbackErr.message);
+    }
+
+    // If all lookups failed
+    return res.status(404).json({ 
+      success: false, 
+      error: 'Product not found in book or media databases. Check the barcode and try again.' 
+    });
+
+  } catch (err) {
+    console.error('[Lookup System Error]', err);
+    return res.status(500).json({ success: false, error: 'Internal server error during metadata lookup.' });
+  }
+});
+
+// API route for search by title
+app.get('/api/search', async (req, res) => {
+  const query = req.query.q;
+  const type = req.query.type || 'all'; // 'all', 'book', 'movie', 'music'
+
+  if (!query) {
+    return res.status(400).json({ success: false, error: 'Query parameter "q" is required.' });
+  }
+
+  console.log(`[Search API] Searching for "${query}" (type: ${type})`);
+  
+  try {
+    const results = [];
+
+    // 1. Search books (Open Library)
+    if (type === 'all' || type === 'book') {
+      try {
+        const olRes = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=5`);
+        if (olRes.ok) {
+          const olData = await olRes.json();
+          if (olData.docs) {
+            olData.docs.slice(0, 5).forEach(doc => {
+              results.push({
+                title: doc.title,
+                creator: doc.author_name?.join(', ') || 'Unknown Author',
+                type: 'book',
+                publishedDate: doc.first_publish_year || 'N/A',
+                barcode: doc.isbn?.[0] || doc.key, // ISBN or OL key fallback
+                thumbnail: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : '',
+                source: 'Open Library',
+                extra: {
+                  pages: doc.number_of_pages_median || null,
+                  openLibraryUrl: doc.key ? `https://openlibrary.org${doc.key}` : ''
+                }
+              });
+            });
+          }
+        }
+      } catch (err) {
+        console.error('[Search API Book Error]', err.message);
+      }
+    }
+
+    // 2. Search movies (TMDb)
+    if (type === 'all' || type === 'movie') {
+      try {
+        const tmdbRes = await fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}&api_key=${TMDB_API_KEY}`);
+        if (tmdbRes.ok) {
+          const tmdbData = await tmdbRes.json();
+          if (tmdbData.results) {
+            tmdbData.results.slice(0, 5).forEach(m => {
+              results.push({
+                title: m.title,
+                creator: 'Movie',
+                type: 'movie',
+                publishedDate: m.release_date ? m.release_date.substring(0, 4) : 'N/A',
+                barcode: `tmdb_${m.id}`, // Custom TMDb ID prefix
+                thumbnail: m.poster_path ? `https://image.tmdb.org/t/p/w200${m.poster_path}` : '',
+                source: 'TMDb',
+                description: m.overview || '',
+                extra: {
+                  backdrop: m.backdrop_path ? `https://image.tmdb.org/t/p/w1280${m.backdrop_path}` : '',
+                  tmdbRating: m.vote_average
+                }
+              });
+            });
+          }
+        }
+      } catch (err) {
+        console.error('[Search API Movie Error]', err.message);
+      }
+    }
+
+    // 3. Search music (MusicBrainz)
+    if (type === 'all' || type === 'music') {
+      try {
+        const mbRes = await fetch(`https://musicbrainz.org/ws/2/release?query=${encodeURIComponent(query)}&fmt=json&limit=5`, {
+          headers: {
+            'User-Agent': 'AuraScan/1.0.0 (contact@example.com)'
+          }
+        });
+        if (mbRes.ok) {
+          const mbData = await mbRes.json();
+          if (mbData.releases) {
+            mbData.releases.slice(0, 5).forEach(r => {
+              results.push({
+                title: r.title,
+                creator: r['artist-credit']?.map(ac => ac.name).join(', ') || 'Unknown Artist',
+                type: 'music',
+                publishedDate: r.date ? r.date.substring(0, 4) : 'N/A',
+                barcode: r.barcode || `mb_${r.id}`, // MB barcode or MBID fallback
+                thumbnail: '',
+                source: 'MusicBrainz',
+                extra: {
+                  mbid: r.id,
+                  label: r['label-info']?.map(li => li.label?.name).filter(Boolean).join(', ') || 'N/A'
+                }
+              });
+            });
+          }
+        }
+      } catch (err) {
+        console.error('[Search API Music Error]', err.message);
+      }
+    }
+
+    return res.json({ success: true, results });
+
+  } catch (err) {
+    console.error('[Search API System Error]', err);
+    return res.status(500).json({ success: false, error: 'Internal server error during search.' });
+  }
+});
+
+// Serve dist/index.html for any other route (SPA fallback)
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
+app.listen(PORT, () => {
+  console.log(`Server is running at http://localhost:${PORT}`);
+});
