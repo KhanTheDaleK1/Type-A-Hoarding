@@ -33,14 +33,25 @@ export const fetchMetadataByBarcode = async (barcode: string): Promise<BarcodeRe
         }
       }
 
-      // Priority 2: MusicBrainz (Excellent for 1D barcodes on CDs/Vinyl)
+      // Priority 2: MusicBrainz + Cover Art Archive
       const mbRes = await fetch(`https://musicbrainz.org/ws/2/release/?query=barcode:${code}&fmt=json`).then(r => r.json());
       if (mbRes.releases?.[0]) {
         const rel = mbRes.releases[0];
+        let thumbnail = undefined;
+        
+        // Fetch Art from Cover Art Archive
+        try {
+          const artRes = await fetch(`https://coverartarchive.org/release/${rel.id}`).then(r => r.json());
+          thumbnail = artRes.images?.[0]?.thumbnails?.['500'] || artRes.images?.[0]?.image;
+        } catch (e) {
+          // No art found, continue with metadata only
+        }
+
         return {
           title: rel.title,
           author: rel['artist-credit']?.[0]?.name,
           year: rel.date?.split('-')[0],
+          thumbnail: thumbnail,
           mediaType: 'Music',
           source: 'MusicBrainz'
         };
