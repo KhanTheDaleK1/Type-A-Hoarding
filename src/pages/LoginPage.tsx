@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Box, LogIn, UserPlus, Github, Chrome, Apple } from 'lucide-react';
+import { Box, LogIn, UserPlus, GitBranch, Globe, Apple } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -90,13 +90,13 @@ const LoginPage: React.FC = () => {
               onClick={() => handleSocialLogin('github')}
               className="flex items-center justify-center p-3 rounded-xl border border-border bg-bg hover:bg-bg-secondary transition-all"
             >
-              <Github size={20} />
+              <GitBranch size={20} />
             </button>
             <button 
               onClick={() => handleSocialLogin('google')}
               className="flex items-center justify-center p-3 rounded-xl border border-border bg-bg hover:bg-bg-secondary transition-all"
             >
-              <Chrome size={20} />
+              <Globe size={20} />
             </button>
             <button 
               onClick={() => handleSocialLogin('apple')}
