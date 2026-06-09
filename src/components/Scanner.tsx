@@ -33,11 +33,13 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
         html5QrCodeScanner.current = new Html5Qrcode("reader");
       }
 
+      console.log('Scanner: Initializing with Camera ID:', cameraId || 'environment');
+
       const config = { 
         fps: 15, 
         qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-          // Larger, more flexible box to help with focus
           const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.8);
+          console.log(`Scanner: Viewfinder Calc -> w:${viewfinderWidth} h:${viewfinderHeight} box:${size}`);
           return { width: size, height: Math.floor(size * 0.5) };
         },
         aspectRatio: 1.0,
@@ -50,18 +52,22 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
         config,
         (decodedText) => {
           if (!scanLock.current) {
+            console.log('Scanner: Successful Scan!', decodedText);
             scanLock.current = true;
             onScan(decodedText);
-            // Lock for 3 seconds to prevent rapid duplicate scans
             setTimeout(() => { scanLock.current = false; }, 3000);
           }
         },
-        () => {}
+        (_errorMessage) => {
+          // Silent frame errors, but useful for extreme debugging
+          // console.log('Scanner Frame Error:', _errorMessage);
+        }
       );
       
+      console.log('Scanner: Started successfully');
       setIsInitializing(false);
     } catch (err: any) {
-      console.error("Scanner startup failed:", err);
+      console.error("Scanner: Startup FAILED:", err);
       setIsInitializing(false);
       setError(err.message || "Failed to start camera.");
     }
@@ -70,10 +76,13 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
   useEffect(() => {
     const init = async () => {
       try {
+        console.log('Scanner: Enumerating cameras...');
         const devices = await Html5Qrcode.getCameras();
+        console.log('Scanner: Found devices:', devices);
         setCameras(devices);
         await startScanner();
       } catch (e) {
+        console.error('Scanner: Device enumeration failed:', e);
         setError("Could not find any cameras.");
         setIsInitializing(false);
       }
