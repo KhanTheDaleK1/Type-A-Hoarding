@@ -17,6 +17,11 @@ const getQueryParam = (name: string): string | null => {
   return null;
 };
 
+const getApiUrl = (path: string) => {
+  const base = localStorage.getItem('hoarding_api_url') || '';
+  return `${base}${path}`;
+};
+
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -40,7 +45,7 @@ const LoginPage: React.FC = () => {
   const handleCallback = async (code: string) => {
     setLoadingMsg('Authenticating with GitHub...');
     try {
-      const response = await fetch('/api/github/callback', {
+      const response = await fetch(getApiUrl('/api/github/callback'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -110,7 +115,7 @@ const LoginPage: React.FC = () => {
     if (provider === 'github') {
       setLoadingMsg('Connecting to GitHub...');
       try {
-        const response = await fetch('/api/github/config');
+        const response = await fetch(getApiUrl('/api/github/config'));
         if (!response.ok) {
           throw new Error('Backend failed to return config');
         }

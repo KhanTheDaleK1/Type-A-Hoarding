@@ -20,6 +20,15 @@ const Settings: React.FC = () => {
     syncService.getConfig() || { token: '', owner: '', repo: '', path: 'hoard_backup.json' }
   );
   const [syncStatus, setSyncStatus] = useState<{ type: 'idle' | 'loading' | 'success' | 'error', msg?: string }>({ type: 'idle' });
+  const [apiUrl, setApiUrl] = useState(() => localStorage.getItem('hoarding_api_url') || '');
+
+  const handleSaveApiUrl = () => {
+    const cleanUrl = apiUrl.trim().replace(/\/$/, '');
+    setApiUrl(cleanUrl);
+    localStorage.setItem('hoarding_api_url', cleanUrl);
+    setSyncStatus({ type: 'success', msg: 'Backend Server URL saved.' });
+    setTimeout(() => setSyncStatus({ type: 'idle' }), 3000);
+  };
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -245,6 +254,33 @@ const Settings: React.FC = () => {
                 onChange={e => setApiKeys({ ...apiKeys, omdb: e.target.value })}
               />
             </div>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-sm font-bold uppercase tracking-widest opacity-50 mb-4 flex items-center gap-2">
+            <RefreshCw size={16} /> Backend Server Connection
+          </h2>
+          <div className="bg-bg-secondary p-4 rounded-xl border border-border space-y-4">
+            <p className="text-[10px] opacity-60 leading-relaxed uppercase font-black">
+              Specify the URL of your hosted Express backend server (leave blank if running on the same domain or localhost).
+            </p>
+            <div>
+              <label className="block text-xs font-bold uppercase opacity-50 mb-1">Backend API URL</label>
+              <input 
+                type="text" 
+                placeholder="e.g. https://api.beechem.site"
+                className="w-full rounded-lg border border-border bg-bg p-2 text-sm outline-none"
+                value={apiUrl}
+                onChange={e => setApiUrl(e.target.value)}
+              />
+            </div>
+            <button 
+              onClick={handleSaveApiUrl}
+              className="w-full p-2 bg-border hover:bg-accent hover:text-white rounded-lg text-sm font-bold transition-all"
+            >
+              Save Server URL
+            </button>
           </div>
         </section>
 

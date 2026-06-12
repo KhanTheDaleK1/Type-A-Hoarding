@@ -10,13 +10,18 @@ export interface BarcodeResult {
   source: string;
 }
 
+const getApiUrl = (path: string) => {
+  const base = localStorage.getItem('hoarding_api_url') || '';
+  return `${base}${path}`;
+};
+
 export const fetchMetadataByBarcode = async (barcode: string): Promise<BarcodeResult | null> => {
   // 1. Clean and Normalize
   let cleanBarcode = barcode.replace(/[-\s]/g, '');
 
   const tryLookup = async (code: string): Promise<BarcodeResult | null> => {
     try {
-      const response = await fetch(`/api/lookup/${code}`);
+      const response = await fetch(getApiUrl(`/api/lookup/${code}`));
       if (!response.ok) return null;
       
       const data = await response.json();
@@ -68,7 +73,7 @@ export const fetchMetadataByTitle = async (title: string, type: string): Promise
       backendType = 'music';
     }
 
-    const response = await fetch(`/api/search?q=${encodeURIComponent(title)}&type=${backendType}`);
+    const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(title)}&type=${backendType}`));
     if (!response.ok) return null;
 
     const data = await response.json();
