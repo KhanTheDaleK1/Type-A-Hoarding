@@ -159,6 +159,65 @@ async function resolveTitleFromSearchEngine(barcode) {
 app.use(express.static(path.join(__dirname, 'dist')));
 app.use(express.json());
 
+// GitHub OAuth configuration
+const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || 'ov23stjApt2Hcrq8hKsn'; // Default client ID
+const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
+
+// Endpoint to get GitHub Client ID
+app.get('/api/github/config', (req, res) => {
+  res.json({
+    success: true,
+    clientId: GITHUB_CLIENT_ID
+  });
+});
+
+// Endpoint to exchange code for token
+app.post('/api/github/callback', async (req, res) => {
+  const { code } = req.body;
+  if (!code) {
+    return res.status(400).json({ success: false, error: 'Code is required.' });
+  }
+
+  try {
+    console.log(`[GitHub OAuth] Exchanging code for token...`);
+    const response = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        client_id: GITHUB_CLIENT_ID,
+        client_secret: GITHUB_CLIENT_SECRET,
+        code
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`[GitHub OAuth] Exchange failed:`, errText);
+      return res.status(500).json({ success: false, error: 'Failed to exchange code for token.' });
+    }
+
+    const data = await response.json();
+    if (data.error) {
+      console.error(`[GitHub OAuth] Error from GitHub:`, data.error_description || data.error);
+      return res.status(400).json({ success: false, error: data.error_description || data.error });
+    }
+
+    console.log(`[GitHub OAuth] Token exchange successful.`);
+    return res.json({
+      success: true,
+      token: data.access_token,
+      scope: data.scope
+    });
+
+  } catch (err) {
+    console.error('[GitHub OAuth Error]', err);
+    return res.status(500).json({ success: false, error: 'Internal server error during token exchange.' });
+  }
+});
+
 // API route for barcode lookup
 app.get('/api/lookup/:barcode', async (req, res) => {
   let barcode = req.params.barcode.trim();

@@ -2,11 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Box, LogIn, UserPlus, GitBranch, Globe, Apple } from 'lucide-react';
+import { syncService } from '../db/sync';
+
+const getQueryParam = (name: string): string | null => {
+  const urlSearch = new URLSearchParams(window.location.search);
+  if (urlSearch.has(name)) return urlSearch.get(name);
+  
+  const hash = window.location.hash;
+  const qIndex = hash.indexOf('?');
+  if (qIndex !== -1) {
+    const hashSearch = new URLSearchParams(hash.substring(qIndex));
+    if (hashSearch.has(name)) return hashSearch.get(name);
+  }
+  return null;
+};
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isRegister, setIsRegister] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState<string | null>(null);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -15,7 +30,75 @@ const LoginPage: React.FC = () => {
     if (!savedTheme) {
       document.documentElement.setAttribute('data-theme', 'dark');
     }
+
+    const code = getQueryParam('code');
+    if (code) {
+      handleCallback(code);
+    }
   }, []);
+
+  const handleCallback = async (code: string) => {
+    setLoadingMsg('Authenticating with GitHub...');
+    try {
+      const response = await fetch('/api/github/callback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ code })
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to exchange code');
+      }
+
+      const token = data.token;
+      
+      // Fetch user profile from GitHub
+      setLoadingMsg('Fetching GitHub user profile...');
+      const userResponse = await fetch('https://api.github.com/user', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github+json'
+        }
+      });
+
+      if (!userResponse.ok) {
+        throw new Error('Failed to fetch user profile from GitHub');
+      }
+
+      const userData = await userResponse.json();
+      const owner = userData.login;
+      const email = userData.email || `${owner}@github.com`;
+
+      // Log in in AuthContext
+      login(email, token);
+
+      // Save GitHub Sync Config
+      const existingConfig = syncService.getConfig();
+      syncService.saveConfig({
+        token,
+        owner,
+        repo: existingConfig?.repo || 'hoard-data',
+        path: existingConfig?.path || 'hoard_backup.json'
+      });
+
+      // Clear the query params from the URL to keep it clean
+      const cleanUrl = window.location.origin + window.location.pathname + window.location.hash.split('?')[0];
+      window.history.replaceState({}, document.title, cleanUrl);
+
+      navigate('/');
+
+    } catch (err: any) {
+      console.error(err);
+      alert(`GitHub Login failed: ${err.message || err}`);
+      setLoadingMsg(null);
+      
+      const cleanUrl = window.location.origin + window.location.pathname + window.location.hash.split('?')[0];
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,15 +106,43 @@ const LoginPage: React.FC = () => {
     navigate('/');
   };
 
-  const handleSocialLogin = (provider: string) => {
-    // For now, we simulate success for GitHub and redirect
+  const handleSocialLogin = async (provider: string) => {
     if (provider === 'github') {
-      login('github-user@example.com', 'gh-oauth-sim-token');
-      navigate('/');
+      setLoadingMsg('Connecting to GitHub...');
+      try {
+        const response = await fetch('/api/github/config');
+        if (!response.ok) {
+          throw new Error('Backend failed to return config');
+        }
+        const data = await response.json();
+        if (!data.success || !data.clientId) {
+          throw new Error('GitHub Client ID not configured on the backend');
+        }
+
+        const redirectUri = window.location.origin + window.location.pathname;
+        const githubUrl = `https://github.com/login/oauth/authorize?client_id=${data.clientId}&scope=repo&redirect_uri=${encodeURIComponent(redirectUri)}`;
+        window.location.href = githubUrl;
+
+      } catch (err: any) {
+        console.error(err);
+        alert(`GitHub Login configuration error: ${err.message || err}`);
+        setLoadingMsg(null);
+      }
     } else {
       alert(`${provider} login coming soon! Currently focusing on GitHub-only backend.`);
     }
   };
+
+  if (loadingMsg) {
+    return (
+      <div className="flex min-h-[80vh] items-center justify-center p-4">
+        <div className="w-full max-w-md bg-bg-secondary p-8 rounded-3xl border border-border shadow-2xl flex flex-col items-center justify-center space-y-4 py-16">
+          <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm font-bold text-text-h uppercase tracking-wider text-center">{loadingMsg}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-[80vh] items-center justify-center p-4">
