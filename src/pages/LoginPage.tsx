@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Box, LogIn, UserPlus, GitBranch, Globe, Apple } from 'lucide-react';
+import { Box, LogIn, UserPlus, GitBranch, Globe, Apple, Settings } from 'lucide-react';
 import { syncService } from '../db/sync';
 
 const getQueryParam = (name: string): string | null => {
@@ -27,8 +27,18 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [isRegister, setIsRegister] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState<string | null>(null);
+  const [showServerConfig, setShowServerConfig] = useState(false);
+  const [apiUrl, setApiUrl] = useState(() => localStorage.getItem('hoarding_api_url') || '');
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  const handleSaveApiUrl = () => {
+    const cleanUrl = apiUrl.trim().replace(/\/$/, '');
+    setApiUrl(cleanUrl);
+    localStorage.setItem('hoarding_api_url', cleanUrl);
+    alert('Connection settings saved successfully!');
+    setShowServerConfig(false);
+  };
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('hoarding_theme');
@@ -151,86 +161,131 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className="flex min-h-[80vh] items-center justify-center p-4">
-      <div className="w-full max-w-md bg-bg-secondary p-8 rounded-3xl border border-border shadow-2xl">
-        <header className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-accent mb-4 text-white">
-            <Box size={28} />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-text-h uppercase">Type-A Hoarding</h1>
-          <p className="text-sm opacity-50 mt-1">
-            {isRegister ? 'Create your private collection archive' : 'Sign in to your collections'}
-          </p>
-        </header>
+      <div className="w-full max-w-md bg-bg-secondary p-8 rounded-3xl border border-border shadow-2xl relative">
+        <button 
+          onClick={() => setShowServerConfig(!showServerConfig)}
+          className="absolute top-6 right-6 p-2 text-text opacity-50 hover:opacity-100 hover:bg-bg rounded-xl transition-all animate-pulse"
+          title="Server Settings"
+        >
+          <Settings size={20} />
+        </button>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider opacity-50 mb-1 ml-1">Email</label>
-            <input 
-              type="email" 
-              required
-              className="w-full rounded-xl border border-border bg-bg p-3 text-sm focus:border-accent outline-none"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="you@example.com"
-            />
+        {showServerConfig ? (
+          <div className="space-y-6">
+            <header className="text-center mb-4">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-accent mb-4 text-white">
+                <Settings size={28} />
+              </div>
+              <h2 className="text-xl font-bold text-text-h uppercase">Server Settings</h2>
+              <p className="text-xs opacity-50 mt-1">Configure your backend API connection</p>
+            </header>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider opacity-50 mb-1 ml-1">Backend API URL</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. https://api.beechem.site"
+                  className="w-full rounded-xl border border-border bg-bg p-3 text-sm focus:border-accent outline-none"
+                  value={apiUrl}
+                  onChange={e => setApiUrl(e.target.value)}
+                />
+                <p className="text-[10px] opacity-40 uppercase font-black mt-2 leading-relaxed px-1">
+                  Leave blank if your API server is running on the same domain or locally on port 3000.
+                </p>
+              </div>
+              
+              <button 
+                onClick={handleSaveApiUrl}
+                className="w-full p-3.5 rounded-xl bg-accent text-white font-bold hover:bg-accent-hover transition-all shadow-lg shadow-accent/20"
+              >
+                Save Settings
+              </button>
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider opacity-50 mb-1 ml-1">Password</label>
-            <input 
-              type="password" 
-              required
-              className="w-full rounded-xl border border-border bg-bg p-3 text-sm focus:border-accent outline-none"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
-            />
-          </div>
+        ) : (
+          <>
+            <header className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-accent mb-4 text-white">
+                <Box size={28} />
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight text-text-h uppercase">Type-A Hoarding</h1>
+              <p className="text-sm opacity-50 mt-1">
+                {isRegister ? 'Create your private collection archive' : 'Sign in to your collections'}
+              </p>
+            </header>
 
-          <button 
-            type="submit"
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-accent p-3.5 text-white font-bold hover:bg-accent-hover transition-all mt-2 shadow-lg shadow-accent/20"
-          >
-            {isRegister ? <UserPlus size={18} /> : <LogIn size={18} />}
-            <span>{isRegister ? 'Register' : 'Sign In'}</span>
-          </button>
-        </form>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider opacity-50 mb-1 ml-1">Email</label>
+                <input 
+                  type="email" 
+                  required
+                  className="w-full rounded-xl border border-border bg-bg p-3 text-sm focus:border-accent outline-none"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider opacity-50 mb-1 ml-1">Password</label>
+                <input 
+                  type="password" 
+                  required
+                  className="w-full rounded-xl border border-border bg-bg p-3 text-sm focus:border-accent outline-none"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+              </div>
 
-        <div className="mt-8 space-y-4">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border"></div></div>
-            <div className="relative flex justify-center text-[10px] uppercase font-black tracking-widest"><span className="bg-bg-secondary px-4 opacity-40">Or continue with</span></div>
-          </div>
+              <button 
+                type="submit"
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-accent p-3.5 text-white font-bold hover:bg-accent-hover transition-all mt-2 shadow-lg shadow-accent/20"
+              >
+                {isRegister ? <UserPlus size={18} /> : <LogIn size={18} />}
+                <span>{isRegister ? 'Register' : 'Sign In'}</span>
+              </button>
+            </form>
 
-          <div className="grid grid-cols-3 gap-3">
-            <button 
-              onClick={() => handleSocialLogin('github')}
-              className="flex items-center justify-center p-3 rounded-xl border border-border bg-bg hover:bg-bg-secondary transition-all"
-            >
-              <GitBranch size={20} />
-            </button>
-            <button 
-              onClick={() => handleSocialLogin('google')}
-              className="flex items-center justify-center p-3 rounded-xl border border-border bg-bg hover:bg-bg-secondary transition-all"
-            >
-              <Globe size={20} />
-            </button>
-            <button 
-              onClick={() => handleSocialLogin('apple')}
-              className="flex items-center justify-center p-3 rounded-xl border border-border bg-bg hover:bg-bg-secondary transition-all"
-            >
-              <Apple size={20} />
-            </button>
-          </div>
-        </div>
+            <div className="mt-8 space-y-4">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border"></div></div>
+                <div className="relative flex justify-center text-[10px] uppercase font-black tracking-widest"><span className="bg-bg-secondary px-4 opacity-40">Or continue with</span></div>
+              </div>
 
-        <div className="mt-8 text-center border-t border-border pt-6">
-          <button 
-            onClick={() => setIsRegister(!isRegister)}
-            className="text-xs font-bold text-accent hover:underline"
-          >
-            {isRegister ? 'Already have an account? Sign In' : "Don't have an account? Register"}
-          </button>
-        </div>
+              <div className="grid grid-cols-3 gap-3">
+                <button 
+                  onClick={() => handleSocialLogin('github')}
+                  className="flex items-center justify-center p-3 rounded-xl border border-border bg-bg hover:bg-bg-secondary transition-all"
+                >
+                  <GitBranch size={20} />
+                </button>
+                <button 
+                  onClick={() => handleSocialLogin('google')}
+                  className="flex items-center justify-center p-3 rounded-xl border border-border bg-bg hover:bg-bg-secondary transition-all"
+                >
+                  <Globe size={20} />
+                </button>
+                <button 
+                  onClick={() => handleSocialLogin('apple')}
+                  className="flex items-center justify-center p-3 rounded-xl border border-border bg-bg hover:bg-bg-secondary transition-all"
+                >
+                  <Apple size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-8 text-center border-t border-border pt-6">
+              <button 
+                onClick={() => setIsRegister(!isRegister)}
+                className="text-xs font-bold text-accent hover:underline"
+              >
+                {isRegister ? 'Already have an account? Sign In' : "Don't have an account? Register"}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
