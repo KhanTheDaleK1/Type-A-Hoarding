@@ -21,7 +21,7 @@ export const useAutoSync = () => {
       firstLoad.current = false;
       // Do an initial pull on app load to grab changes from other devices
       console.log('App loaded, checking for remote updates...');
-      syncService.pull().catch(e => console.error('Initial pull failed:', e));
+      syncService.pull(true).catch(e => console.error('Initial pull failed:', e));
       return; // Don't push immediately after pulling
     }
 

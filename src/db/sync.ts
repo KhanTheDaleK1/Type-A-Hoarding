@@ -88,7 +88,7 @@ export const syncService = {
     return res.json();
   },
 
-  async pull() {
+  async pull(merge = false) {
     const config = this.getConfig();
     if (!config) throw new Error('GitHub sync not configured');
 
@@ -115,10 +115,40 @@ export const syncService = {
     const parsed = JSON.parse(content);
 
     if (parsed.collections && parsed.items) {
-      await db.collections.clear();
-      await db.items.clear();
-      await db.collections.bulkAdd(parsed.collections);
-      await db.items.bulkAdd(parsed.items);
+      if (merge) {
+        // Merge collections
+        for (const col of parsed.collections) {
+          const localCol = await db.collections.get(col.id);
+          if (!localCol) {
+            await db.collections.add(col);
+          } else if (col.createdAt > (localCol.createdAt || 0)) {
+            await db.collections.put(col);
+          }
+        }
+
+        // Merge items
+        for (const item of parsed.items) {
+          const localItem = await db.items.get(item.id);
+          if (!localItem) {
+            await db.items.add(item);
+          } else {
+            // Keep local images if remote is empty and local has images
+            const mergedImages = (localItem.images && localItem.images.length > 0 && (!item.images || item.images.length === 0))
+              ? localItem.images
+              : item.images;
+
+            await db.items.put({
+              ...item,
+              images: mergedImages
+            });
+          }
+        }
+      } else {
+        await db.collections.clear();
+        await db.items.clear();
+        await db.collections.bulkAdd(parsed.collections);
+        await db.items.bulkAdd(parsed.items);
+      }
     }
 
     return parsed;
