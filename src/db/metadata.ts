@@ -82,7 +82,7 @@ export const fetchMetadataByBarcode = async (barcode: string, isVhs?: boolean): 
 
 export const fetchMetadataByTitle = async (title: string, type: string, isVhs?: boolean): Promise<BarcodeResult | null> => {
   try {
-    // Map collection type to backend API query type ('movie', 'book', 'music', or 'all')
+    // Map collection type to backend API query type ('movie', 'book', 'music', 'game', or 'all')
     let backendType = 'all';
     if (type === 'Movies' || type === 'TV Shows') {
       backendType = 'movie';
@@ -90,6 +90,8 @@ export const fetchMetadataByTitle = async (title: string, type: string, isVhs?: 
       backendType = 'book';
     } else if (type === 'Music') {
       backendType = 'music';
+    } else if (type === 'Video Games') {
+      backendType = 'game';
     }
 
     const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(title)}&type=${backendType}${isVhs ? '&isVhs=true' : ''}`), {

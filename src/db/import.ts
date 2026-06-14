@@ -94,9 +94,13 @@ export const fetchMetadataInBackground = async (items: Item[], collectionId?: st
         metadata = await fetchMetadataByBarcode(item.customData.isbn, isVhsItem);
       } 
       
-      // Strategy 2: Title (specifically for movies/shows)
-      if (!metadata && (collType === 'Movies' || collType === 'TV Shows')) {
-        metadata = await fetchMetadataByTitle(item.title, collType, isVhsItem);
+      // Strategy 2: Title (specifically for movies/shows/video games)
+      if (!metadata) {
+        if (collType === 'Movies' || collType === 'TV Shows') {
+          metadata = await fetchMetadataByTitle(item.title, collType, isVhsItem);
+        } else if (collType === 'Video Games') {
+          metadata = await fetchMetadataByTitle(item.title, 'Video Games');
+        }
       }
 
       if (metadata) {

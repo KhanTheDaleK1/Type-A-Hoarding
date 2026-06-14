@@ -953,6 +953,40 @@ app.get('/api/search', async (req, res) => {
       }
     }
 
+    // 4. Search video games (DuckDuckGo Instant Answer API)
+    if (type === 'all' || type === 'game') {
+      try {
+        console.log(`[Search API Game] Querying DuckDuckGo Instant Answer for "${query}"`);
+        const ddgRes = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json`);
+        if (ddgRes.ok) {
+          const ddgData = await ddgRes.json();
+          if (ddgData.Heading && ddgData.AbstractText) {
+            let publishedDate = 'N/A';
+            const yearMatch = ddgData.AbstractText.match(/\b(19\d{2}|20\d{2})\b/);
+            if (yearMatch) {
+              publishedDate = yearMatch[1];
+            }
+
+            results.push({
+              title: ddgData.Heading,
+              creator: 'Video Game',
+              type: 'game',
+              publishedDate,
+              barcode: `ddg_${ddgData.Heading.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+              thumbnail: ddgData.Image ? `https://duckduckgo.com${ddgData.Image}` : '',
+              source: 'DuckDuckGo',
+              description: ddgData.AbstractText || '',
+              extra: {
+                category: 'Video Game'
+              }
+            });
+          }
+        }
+      } catch (err) {
+        console.error('[Search API Game Error]', err.message);
+      }
+    }
+
     for (const item of results) {
       if (item.thumbnail) {
         item.thumbnail = await fetchUrlAsBase64(item.thumbnail);
