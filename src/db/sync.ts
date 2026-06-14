@@ -51,7 +51,7 @@ export const syncService = {
     // 1. Get current file SHA (if it exists) to update it
     let sha: string | undefined;
     try {
-      const getRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.path}`, {
+      const getRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.path}?t=${Date.now()}`, {
         headers: {
           'Authorization': `Bearer ${config.token}`,
           'Accept': 'application/vnd.github.object'
@@ -92,7 +92,7 @@ export const syncService = {
     const config = this.getConfig();
     if (!config) throw new Error('GitHub sync not configured');
 
-    const res = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.path}`, {
+    const res = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.path}?t=${Date.now()}`, {
       headers: {
         'Authorization': `Bearer ${config.token}`,
         'Accept': 'application/vnd.github.raw'
