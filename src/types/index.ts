@@ -14,6 +14,8 @@ export interface Collection {
   icon?: string;
   customFields: FieldDefinition[];
   createdAt: number;
+  favorite?: boolean;
+  pinned?: boolean;
 }
 
 export interface Item {

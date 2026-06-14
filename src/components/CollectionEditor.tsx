@@ -22,6 +22,8 @@ const CollectionEditor: React.FC<CollectionEditorProps> = ({ collection, onClose
   const [name, setName] = useState(collection?.name || '');
   const [type, setType] = useState<CollectionType>(collection?.type || 'Custom');
   const [fields, setFields] = useState<FieldDefinition[]>(collection?.customFields || []);
+  const [favorite, setFavorite] = useState(collection?.favorite || false);
+  const [pinned, setPinned] = useState(collection?.pinned || false);
 
   const addField = () => {
     const newField: FieldDefinition = {
@@ -48,7 +50,9 @@ const CollectionEditor: React.FC<CollectionEditorProps> = ({ collection, onClose
       name,
       type,
       customFields: fields,
-      createdAt: collection?.createdAt || Date.now()
+      createdAt: collection?.createdAt || Date.now(),
+      favorite,
+      pinned
     };
 
     if (collection) {
@@ -94,6 +98,27 @@ const CollectionEditor: React.FC<CollectionEditorProps> = ({ collection, onClose
                 {COLLECTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
+          </div>
+
+          <div className="flex gap-6 border-b border-border/50 pb-4">
+            <label className="flex items-center gap-2 cursor-pointer text-sm font-bold select-none">
+              <input 
+                type="checkbox"
+                checked={pinned}
+                onChange={e => setPinned(e.target.checked)}
+                className="w-4 h-4 rounded border-border text-accent focus:ring-accent"
+              />
+              <span>📌 Pin to Top</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer text-sm font-bold select-none">
+              <input 
+                type="checkbox"
+                checked={favorite}
+                onChange={e => setFavorite(e.target.checked)}
+                className="w-4 h-4 rounded border-border text-danger focus:ring-danger"
+              />
+              <span>⭐ Favorite Collection</span>
+            </label>
           </div>
 
           <div className="border-t border-border pt-6">

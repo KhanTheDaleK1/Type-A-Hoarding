@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { syncService } from '../db/sync';
-import { Plus, Settings as SettingsIcon, Package, Edit2, Search, Camera, RefreshCw } from 'lucide-react';
+import { Plus, Settings as SettingsIcon, Package, Edit2, Search, Camera, RefreshCw, Pin, Star } from 'lucide-react';
 import CollectionEditor from '../components/CollectionEditor';
 import Scanner from '../components/Scanner';
 import type { Collection } from '../types';
@@ -64,7 +64,14 @@ const Dashboard: React.FC = () => {
   const filteredCollections = collections?.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     items?.some(i => i.collectionId === c.id && i.title.toLowerCase().includes(searchQuery.toLowerCase()))
-  ).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true }));
+  ).sort((a, b) => {
+    // 1. Pinned collections first
+    if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+    // 2. Favorite collections next
+    if (!!a.favorite !== !!b.favorite) return a.favorite ? -1 : 1;
+    // 3. Alphabetical fallback
+    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true });
+  });
 
   const totalValue = items?.reduce((sum, item) => sum + (item.estimatedValue || 0), 0) || 0;
 
@@ -131,15 +138,41 @@ const Dashboard: React.FC = () => {
                   <div className="p-3 bg-accent/10 rounded-2xl text-accent">
                     <Package size={24} />
                   </div>
-                  <button 
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setEditingCollection(collection);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 p-2 hover:bg-accent/10 rounded-lg transition-all"
-                  >
-                    <Edit2 size={16} className="text-accent" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        await db.collections.update(collection.id, { pinned: !collection.pinned });
+                      }}
+                      className={`p-2 rounded-lg hover:bg-accent/10 transition-all ${collection.pinned ? 'text-accent opacity-100' : 'opacity-0 group-hover:opacity-40 hover:opacity-100'}`}
+                      title={collection.pinned ? "Unpin Collection" : "Pin to Top"}
+                    >
+                      <Pin size={16} className={collection.pinned ? 'fill-accent' : ''} />
+                    </button>
+                    <button 
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        await db.collections.update(collection.id, { favorite: !collection.favorite });
+                      }}
+                      className={`p-2 rounded-lg hover:bg-danger/10 transition-all ${collection.favorite ? 'text-danger opacity-100' : 'opacity-0 group-hover:opacity-45 hover:opacity-100'}`}
+                      title={collection.favorite ? "Remove Favorite" : "Mark as Favorite"}
+                    >
+                      <Star size={16} className={collection.favorite ? 'fill-danger text-danger' : ''} />
+                    </button>
+                    <button 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setEditingCollection(collection);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-2 hover:bg-accent/10 rounded-lg transition-all"
+                      title="Edit Collection"
+                    >
+                      <Edit2 size={16} className="text-accent" />
+                    </button>
+                  </div>
                 </div>
                 <h2 className="text-xl font-black mb-1">{collection.name}</h2>
                 <p className="text-sm opacity-50 font-bold uppercase tracking-wider mb-4">{collection.type}</p>
