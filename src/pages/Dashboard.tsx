@@ -145,7 +145,7 @@ const Dashboard: React.FC = () => {
                         e.stopPropagation();
                         await db.collections.update(collection.id, { pinned: !collection.pinned });
                       }}
-                      className={`p-2 rounded-lg hover:bg-accent/10 transition-all ${collection.pinned ? 'text-accent opacity-100' : 'opacity-0 group-hover:opacity-40 hover:opacity-100'}`}
+                      className={`p-2 rounded-lg hover:bg-accent/10 transition-all ${collection.pinned ? 'text-accent opacity-100' : 'opacity-40 lg:opacity-0 lg:group-hover:opacity-40 hover:opacity-100'}`}
                       title={collection.pinned ? "Unpin Collection" : "Pin to Top"}
                     >
                       <Pin size={16} className={collection.pinned ? 'fill-accent' : ''} />
@@ -156,7 +156,7 @@ const Dashboard: React.FC = () => {
                         e.stopPropagation();
                         await db.collections.update(collection.id, { favorite: !collection.favorite });
                       }}
-                      className={`p-2 rounded-lg hover:bg-danger/10 transition-all ${collection.favorite ? 'text-danger opacity-100' : 'opacity-0 group-hover:opacity-45 hover:opacity-100'}`}
+                      className={`p-2 rounded-lg hover:bg-danger/10 transition-all ${collection.favorite ? 'text-danger opacity-100' : 'opacity-40 lg:opacity-0 lg:group-hover:opacity-45 hover:opacity-100'}`}
                       title={collection.favorite ? "Remove Favorite" : "Mark as Favorite"}
                     >
                       <Star size={16} className={collection.favorite ? 'fill-danger text-danger' : ''} />
@@ -167,7 +167,7 @@ const Dashboard: React.FC = () => {
                         e.stopPropagation();
                         setEditingCollection(collection);
                       }}
-                      className="opacity-0 group-hover:opacity-100 p-2 hover:bg-accent/10 rounded-lg transition-all"
+                      className="opacity-60 lg:opacity-0 lg:group-hover:opacity-100 p-2 hover:bg-accent/10 rounded-lg transition-all"
                       title="Edit Collection"
                     >
                       <Edit2 size={16} className="text-accent" />
