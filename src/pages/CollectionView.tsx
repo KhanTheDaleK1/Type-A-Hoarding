@@ -36,6 +36,15 @@ const CollectionView: React.FC = () => {
     if (!rawItems || rawItems.length === 0) return;
     setIsRepairing(true);
     try {
+      // Test if backend is reachable
+      const base = localStorage.getItem('hoarding_api_url') || '';
+      const testRes = await fetch(`${base}/api/github/config`).catch(() => null);
+      if (!testRes || !testRes.ok) {
+        alert('Cannot connect to the backend server. Please verify your "Backend API URL" in Settings and ensure the server is running!');
+        setIsRepairing(false);
+        return;
+      }
+
       await fetchMetadataInBackground(rawItems, id);
       alert('Metadata repair complete! Missing art and info have been fetched where possible.');
     } catch (e) {
