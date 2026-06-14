@@ -228,6 +228,17 @@ const Settings: React.FC = () => {
         await db.items.bulkDelete(itemsToDelete);
       }
 
+      // If GitHub sync is configured, push the cleaned database immediately
+      const config = syncService.getConfig();
+      if (config && config.token && config.owner && config.repo) {
+        setSyncStatus({ type: 'loading', msg: 'Deduplication complete! Pushing cleaned data to GitHub...' });
+        try {
+          await syncService.push();
+        } catch (pushErr: any) {
+          console.error('Failed to push cleaned data to GitHub:', pushErr);
+        }
+      }
+
       setSyncStatus({ 
         type: 'success', 
         msg: `Deduplication complete! Removed ${collectionsDeleted} duplicate collections and ${itemsDeleted} duplicate items.` 
