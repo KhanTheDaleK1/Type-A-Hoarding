@@ -188,7 +188,7 @@ async function resolveTitleFromSearchEngine(barcode) {
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,Content-Type,X-TMDB-API-KEY,X-OMDB-API-KEY,Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,Content-Type,X-TMDB-API-KEY,X-OMDB-API-KEY,X-GEMINI-API-KEY,Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
@@ -198,7 +198,8 @@ app.use((req, res, next) => {
 
 // Serve static files from the 'dist' directory
 app.use(express.static(path.join(__dirname, 'dist')));
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ limit: '20mb', extended: true }));
 
 // GitHub OAuth configuration
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || 'ov23stjApt2Hcrq8hKsn'; // Default client ID
@@ -1069,6 +1070,127 @@ app.get('/api/search', async (req, res) => {
   } catch (err) {
     console.error('[Search API System Error]', err);
     return res.status(500).json({ success: false, error: 'Internal server error during search.' });
+  }
+});
+
+// Route for AI visual recognition of collectibles using Gemini 2.5 Flash
+app.post('/api/identify', async (req, res) => {
+  const geminiKey = req.headers['x-gemini-api-key'] || req.body.gemini_key;
+  const image = req.body.image;
+  const collectionType = req.body.collectionType || 'Custom';
+  const collectionName = req.body.collectionName || '';
+  const customFields = req.body.customFields || [];
+
+  if (!geminiKey) {
+    return res.status(400).json({ success: false, error: 'Gemini API Key is required. Please add it in Settings.' });
+  }
+
+  if (!image) {
+    return res.status(400).json({ success: false, error: 'Image data is required.' });
+  }
+
+  try {
+    // Strip base64 data prefix if present
+    const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+    
+    const fieldsPrompt = customFields.length > 0
+      ? `The collection defines these custom fields. You MUST map the values you extract to these exact keys in the "customData" object (only include keys that exist in this list):
+${JSON.stringify(customFields.map(f => ({ id: f.id, name: f.name, type: f.type })))}`
+      : `Provide any relevant metadata in the "customData" object matching typical fields like:
+{
+  "author": "string (only if book)",
+  "publisher": "string (only if book/music/game/comic/magazine/wine)",
+  "year": "string/number (year)",
+  "genre": "string (genre of the book, movie, game or music)",
+  "cardNumber": "string (e.g. 020/189 - only if Pokemon/TCG card)",
+  "set": "string (e.g. Darkness Ablaze - only if Pokemon/TCG card)",
+  "rarity": "string (e.g. Holo Rare - only if Pokemon/TCG card)",
+  "platform": "string (e.g. Nintendo Wii - only if video game)",
+  "director": "string (only if movie/vhs)",
+  "artist": "string (only if music/art)",
+  "label": "string (only if music)"
+}`;
+
+    const prompt = `Analyze this photo of a collectible item (such as a Pokemon card, Magic card, coin, action figure, book, vinyl record, cassette, VHS tape, board game, toy car, Lego set, etc.).
+Identify the item and extract the following details. 
+
+You MUST return the response STRICTLY as a single JSON object matching this schema:
+{
+  "title": "Full official name of the item (e.g. Charizard VMAX or Super Mario Galaxy or Winnie the Pooh)",
+  "creator": "Brand, manufacturer, author, artist, director, or publisher (e.g. The Pokemon Company, Nintendo, J.K. Rowling, Disney)",
+  "year": "Release or publication year (4 digits, or 'Unknown')",
+  "description": "A brief summary or description of this collectible item (1-3 sentences)",
+  "customData": {
+     // Key-value pairs matching the custom fields
+  }
+}
+
+Context: This item belongs to a collection named "${collectionName}" of category type "${collectionType}".
+${fieldsPrompt}`;
+
+    const requestBody = {
+      contents: [
+        {
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                mimeType: "image/jpeg",
+                data: base64Data
+              }
+            }
+          ]
+        }
+      ],
+      generationConfig: {
+        responseMimeType: "application/json"
+      }
+    };
+
+    console.log(`[Gemini API] Querying Gemini 2.5 Flash for image identification (collection type: ${collectionType})...`);
+    
+    const response = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('[Gemini API Error]', errText);
+      return res.status(response.status).json({ success: false, error: `Gemini API returned error: ${errText}` });
+    }
+
+    const data = await response.json();
+    
+    // Extract JSON string from Gemini's response structure
+    const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!candidateText) {
+      throw new Error('Gemini did not return any text candidates.');
+    }
+
+    // Parse the returned JSON text
+    let parsedResult;
+    try {
+      parsedResult = JSON.parse(candidateText.trim());
+    } catch (parseErr) {
+      console.error('Failed to parse Gemini output as JSON:', candidateText);
+      throw new Error('Gemini output was not valid JSON.');
+    }
+
+    // Return the recognized metadata
+    return res.json({
+      success: true,
+      result: parsedResult
+    });
+
+  } catch (err) {
+    console.error('[Identify API Error]', err);
+    return res.status(500).json({ success: false, error: err.message || 'Internal server error during image identification.' });
   }
 });
 

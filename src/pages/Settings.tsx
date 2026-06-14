@@ -42,7 +42,7 @@ const Settings: React.FC = () => {
 
   const [apiKeys, setApiKeys] = useState(() => {
     const saved = localStorage.getItem('hoarding_api_keys');
-    return saved ? JSON.parse(saved) : { tmdb: '', omdb: '' };
+    return saved ? JSON.parse(saved) : { tmdb: '', omdb: '', gemini: '' };
   });
 
   useEffect(() => {
@@ -340,7 +340,7 @@ const Settings: React.FC = () => {
           </h2>
           <div className="bg-bg-secondary p-4 rounded-xl border border-border space-y-4">
             <p className="text-[10px] opacity-60 leading-relaxed uppercase font-black">
-              Enhance movie & game lookups by providing your own free developer keys.
+              Enhance movie & game lookups and enable AI visual scanning by providing your own developer keys.
             </p>
             <div>
               <label className="block text-xs font-bold uppercase opacity-50 mb-1">TMDb API Key (v3)</label>
@@ -360,6 +360,16 @@ const Settings: React.FC = () => {
                 className="w-full rounded-lg border border-border bg-bg p-2 text-sm outline-none"
                 value={apiKeys.omdb}
                 onChange={e => setApiKeys({ ...apiKeys, omdb: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase opacity-50 mb-1">Gemini API Key (Google AI Studio)</label>
+              <input 
+                type="password" 
+                placeholder="Gemini API Key (for Photo AI Scan)"
+                className="w-full rounded-lg border border-border bg-bg p-2 text-sm outline-none"
+                value={apiKeys.gemini || ''}
+                onChange={e => setApiKeys({ ...apiKeys, gemini: e.target.value })}
               />
             </div>
           </div>

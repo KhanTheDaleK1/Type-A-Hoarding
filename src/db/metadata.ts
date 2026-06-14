@@ -25,6 +25,7 @@ const getHeaders = () => {
       const keys = JSON.parse(savedKeys);
       if (keys.tmdb) headers['X-TMDB-API-KEY'] = keys.tmdb;
       if (keys.omdb) headers['X-OMDB-API-KEY'] = keys.omdb;
+      if (keys.gemini) headers['X-GEMINI-API-KEY'] = keys.gemini;
     } catch (e) {
       console.error('Failed to parse hoarding_api_keys', e);
     }

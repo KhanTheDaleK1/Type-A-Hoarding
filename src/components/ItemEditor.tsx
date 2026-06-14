@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import type { Collection, Item } from '../types';
 import { db } from '../db/db';
-import { X, Camera, Save, Plus } from 'lucide-react';
+import { X, Camera, Save, Plus, Sparkles } from 'lucide-react';
 import Scanner from './Scanner';
 import CameraCapture from './CameraCapture';
 import { fetchMetadataByBarcode } from '../db/metadata';
@@ -15,6 +15,132 @@ interface ItemEditorProps {
 const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) => {
   const [showScanner, setShowScanner] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isIdentifying, setIsIdentifying] = useState(false);
+
+  const compressImage = (base64Str: string, maxWidth = 1024, maxHeight = 1024): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = base64Str;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+    });
+  };
+
+  const triggerAiScan = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAiScan = async (file: File) => {
+    setIsIdentifying(true);
+    try {
+      // 1. Read file as Data URL
+      const base64Raw = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      // 2. Compress the image to speed up upload & respect API limits
+      const compressedImage = await compressImage(base64Raw);
+
+      // 3. Get API credentials
+      const savedKeys = localStorage.getItem('hoarding_api_keys');
+      const keys = savedKeys ? JSON.parse(savedKeys) : {};
+      const geminiKey = keys.gemini || '';
+
+      if (!geminiKey) {
+        alert('Gemini API Key is missing. Please go to Settings and enter your Google AI Studio Gemini Key.');
+        setIsIdentifying(false);
+        return;
+      }
+
+      const apiUrl = localStorage.getItem('hoarding_api_url') || 'https://hoardbackend.beechem.site';
+
+      // 4. Send to backend
+      const response = await fetch(`${apiUrl}/api/identify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-GEMINI-API-KEY': geminiKey
+        },
+        body: JSON.stringify({
+          image: compressedImage,
+          collectionType: collection.type,
+          collectionName: collection.name,
+          customFields: collection.customFields
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to identify image.');
+      }
+
+      const data = await response.json();
+      if (data && data.success && data.result) {
+        const itemResult = data.result;
+        
+        // Match custom fields
+        const newCustomData: Record<string, any> = {};
+        if (itemResult.customData) {
+          // Put the Gemini output custom fields directly
+          for (const key of Object.keys(itemResult.customData)) {
+            newCustomData[key] = itemResult.customData[key];
+          }
+        }
+
+        // Apply back to form
+        setFormData(prev => ({
+          ...prev,
+          title: itemResult.title || prev.title,
+          notes: itemResult.description || prev.notes,
+          images: [compressedImage, ...(prev.images || [])].slice(0, 4), // Add the captured photo to images!
+          customData: {
+            ...prev.customData,
+            ...newCustomData
+          }
+        }));
+
+        alert(`Successfully identified: "${itemResult.title}"!`);
+      } else {
+        alert('Failed to recognize the item in the image. Please try again with a clearer shot.');
+      }
+    } catch (e: any) {
+      console.error('Image identification failed:', e);
+      let errMsg = e.message || e;
+      try {
+        const parsedErr = JSON.parse(errMsg);
+        errMsg = parsedErr.error || errMsg;
+      } catch (err) {}
+      alert(`AI Scan Failed: ${errMsg}`);
+    } finally {
+      setIsIdentifying(false);
+    }
+  };
+
   const [formData, setFormData] = useState<Partial<Item>>(item || {
     collectionId: collection.id,
     title: '',
@@ -152,13 +278,39 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
 
         <div className="space-y-6">
           {!item && (
-            <button 
-              onClick={() => setShowScanner(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent p-4 text-white font-bold hover:bg-accent-hover transition-all"
-            >
-              <Camera size={20} />
-              Scan Barcode to Auto-Fill
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button 
+                type="button"
+                onClick={() => setShowScanner(true)}
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-accent p-4 text-white font-bold hover:bg-accent-hover transition-all shadow-md"
+              >
+                <Camera size={20} />
+                Scan Barcode
+              </button>
+              <button 
+                type="button"
+                onClick={triggerAiScan}
+                disabled={isIdentifying}
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-accent/20 border border-accent/30 text-accent p-4 font-bold hover:bg-accent/30 transition-all shadow-sm disabled:opacity-50"
+              >
+                <Sparkles size={20} className={isIdentifying ? "animate-pulse" : ""} />
+                {isIdentifying ? 'Analyzing Photo...' : 'Photo AI Scan'}
+              </button>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                accept="image/*" 
+                capture="environment" 
+                className="hidden" 
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    await handleAiScan(file);
+                  }
+                  e.target.value = ''; // Reset
+                }}
+              />
+            </div>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
