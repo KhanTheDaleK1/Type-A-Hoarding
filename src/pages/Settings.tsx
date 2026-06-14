@@ -152,6 +152,97 @@ const Settings: React.FC = () => {
     reader.readAsText(file);
   };
 
+  const handleDeduplicate = async () => {
+    if (!confirm('This will find and merge duplicate collections with the same name and category, and remove duplicate items within each collection. Proceed?')) return;
+    
+    setSyncStatus({ type: 'loading', msg: 'Deduplicating database...' });
+    try {
+      const collections = await db.collections.toArray();
+      const items = await db.items.toArray();
+
+      let collectionsDeleted = 0;
+      let itemsDeleted = 0;
+
+      // 1. Deduplicate Collections
+      const keptCollections: { [key: string]: string } = {}; // key -> id
+      const collectionIdMap: { [oldId: string]: string } = {}; // oldId -> newId
+
+      for (const c of collections) {
+        const key = `${c.name.trim().toLowerCase()}|${c.type}`;
+        if (!keptCollections[key]) {
+          keptCollections[key] = c.id;
+          collectionIdMap[c.id] = c.id;
+        } else {
+          collectionIdMap[c.id] = keptCollections[key];
+          collectionsDeleted++;
+          await db.collections.delete(c.id);
+        }
+      }
+
+      // 2. Update item collectionIds if their collection was merged
+      const updatedItems = [];
+      for (const item of items) {
+        const targetCollectionId = collectionIdMap[item.collectionId];
+        if (targetCollectionId && targetCollectionId !== item.collectionId) {
+          item.collectionId = targetCollectionId;
+          await db.items.update(item.id, { collectionId: targetCollectionId });
+        }
+        updatedItems.push(item);
+      }
+
+      // 3. Deduplicate Items within each collection
+      const seenItems = new Map<string, typeof items[0]>();
+      const itemsToDelete = [];
+
+      for (const item of updatedItems) {
+        const title = (item.title || '').trim().toLowerCase();
+        const author = (item.customData?.author || '').trim().toLowerCase();
+        const isbn = (item.customData?.isbn || '').replace(/[^0-9]/g, '');
+
+        const itemKey = `${item.collectionId}|${isbn ? `isbn:${isbn}` : `title:${title}|author:${author}`}`;
+
+        if (!seenItems.has(itemKey)) {
+          seenItems.set(itemKey, item);
+        } else {
+          const existing = seenItems.get(itemKey)!;
+          const existingScore = (existing.images?.[0] ? 10 : 0) + 
+                                (existing.notes ? 5 : 0) + 
+                                (existing.personalRating ? 2 : 0) + 
+                                (existing.storageLocation ? 1 : 0);
+          const currentScore = (item.images?.[0] ? 10 : 0) + 
+                               (item.notes ? 5 : 0) + 
+                               (item.personalRating ? 2 : 0) + 
+                               (item.storageLocation ? 1 : 0);
+
+          if (currentScore > existingScore) {
+            itemsToDelete.push(existing.id);
+            seenItems.set(itemKey, item);
+          } else {
+            itemsToDelete.push(item.id);
+          }
+          itemsDeleted++;
+        }
+      }
+
+      if (itemsToDelete.length > 0) {
+        await db.items.bulkDelete(itemsToDelete);
+      }
+
+      setSyncStatus({ 
+        type: 'success', 
+        msg: `Deduplication complete! Removed ${collectionsDeleted} duplicate collections and ${itemsDeleted} duplicate items.` 
+      });
+      
+      setTimeout(() => {
+        setSyncStatus({ type: 'idle' });
+        window.location.reload();
+      }, 3000);
+      
+    } catch (e: any) {
+      setSyncStatus({ type: 'error', msg: `Deduplication failed: ${e.message}` });
+    }
+  };
+
   const clearAll = async () => {
     if (confirm('Are you sure you want to delete ALL your data? This cannot be undone.')) {
       await db.collections.clear();
@@ -395,6 +486,16 @@ const Settings: React.FC = () => {
                   <span className="text-sm font-bold">Goodreads CSV</span>
                   <input type="file" accept=".csv" className="hidden" onChange={handleGoodreadsImport} />
                 </label>
+
+                <button 
+                  onClick={handleDeduplicate}
+                  className="w-full flex items-center gap-3 p-3 bg-bg hover:bg-accent/5 border border-border rounded-2xl transition-all group"
+                >
+                  <div className="p-2 bg-accent/10 rounded-xl text-accent group-hover:bg-accent group-hover:text-white transition-colors">
+                    <RefreshCw size={18} />
+                  </div>
+                  <span className="text-sm font-bold">Remove Duplicates</span>
+                </button>
               </div>
             </div>
 
