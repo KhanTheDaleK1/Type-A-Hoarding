@@ -2,6 +2,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import https from 'https';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -923,6 +924,20 @@ app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running at http://localhost:${PORT}`);
-});
+const KEY_FILE = path.join(__dirname, '..', 'certs', 'key.pem');
+const CERT_FILE = path.join(__dirname, '..', 'certs', 'cert.pem');
+
+if (fs.existsSync(KEY_FILE) && fs.existsSync(CERT_FILE)) {
+  const credentials = {
+    key: fs.readFileSync(KEY_FILE, 'utf8'),
+    cert: fs.readFileSync(CERT_FILE, 'utf8')
+  };
+  const httpsServer = https.createServer(credentials, app);
+  httpsServer.listen(PORT, () => {
+    console.log(`HTTPS Server is running at https://localhost:${PORT}`);
+  });
+} else {
+  app.listen(PORT, () => {
+    console.log(`HTTP Server is running at http://localhost:${PORT}`);
+  });
+}
