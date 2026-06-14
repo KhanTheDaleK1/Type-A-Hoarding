@@ -1,4 +1,4 @@
-export type CollectionType = 'Movies' | 'Books' | 'Video Games' | 'Comics' | 'Music' | 'Toy Cars' | 'LEGO' | 'Wine' | 'Coins' | 'Art' | 'Action Figures' | 'Currency' | 'Board Games' | 'Magazines' | 'Custom';
+export type CollectionType = 'Movies' | 'Books' | 'Video Games' | 'Comics' | 'Music' | 'Toy Cars' | 'LEGO' | 'Wine' | 'Coins' | 'Art' | 'Action Figures' | 'Currency' | 'Board Games' | 'Magazines' | 'Trading Cards' | 'Custom';
 
 export interface FieldDefinition {
   id: string;

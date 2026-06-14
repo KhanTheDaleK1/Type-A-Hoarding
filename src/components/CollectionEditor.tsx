@@ -11,7 +11,7 @@ interface CollectionEditorProps {
 const COLLECTION_TYPES: CollectionType[] = [
   'Movies', 'Books', 'Video Games', 'Comics', 'Music', 
   'Toy Cars', 'LEGO', 'Wine', 'Coins', 'Art', 
-  'Action Figures', 'Currency', 'Board Games', 'Magazines', 'Custom'
+  'Action Figures', 'Currency', 'Board Games', 'Magazines', 'Trading Cards', 'Custom'
 ];
 
 const FIELD_TYPES: FieldDefinition['type'][] = [
@@ -93,7 +93,27 @@ const CollectionEditor: React.FC<CollectionEditorProps> = ({ collection, onClose
               <select 
                 className="w-full rounded-lg border border-border bg-bg-secondary p-3 focus:border-accent outline-none"
                 value={type}
-                onChange={e => setType(e.target.value as CollectionType)}
+                onChange={e => {
+                  const newType = e.target.value as CollectionType;
+                  setType(newType);
+                  // Auto-populate default fields if it's a new collection and fields are currently empty
+                  if (!collection && fields.length === 0) {
+                    if (newType === 'Trading Cards') {
+                      setFields([
+                        { id: 'cardNumber', name: 'Card Number', type: 'text' },
+                        { id: 'set', name: 'Set Name', type: 'text' },
+                        { id: 'rarity', name: 'Rarity', type: 'text' }
+                      ]);
+                    } else if (newType === 'Books') {
+                      setFields([
+                        { id: 'author', name: 'Author', type: 'text' },
+                        { id: 'publisher', name: 'Publisher', type: 'text' },
+                        { id: 'year', name: 'Year Published', type: 'number' },
+                        { id: 'isbn', name: 'ISBN', type: 'text' }
+                      ]);
+                    }
+                  }
+                }}
               >
                 {COLLECTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
