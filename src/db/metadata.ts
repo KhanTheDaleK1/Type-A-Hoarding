@@ -32,13 +32,13 @@ const getHeaders = () => {
   return headers;
 };
 
-export const fetchMetadataByBarcode = async (barcode: string): Promise<BarcodeResult | null> => {
+export const fetchMetadataByBarcode = async (barcode: string, isVhs?: boolean): Promise<BarcodeResult | null> => {
   // 1. Clean and Normalize
   let cleanBarcode = barcode.replace(/[-\s]/g, '');
 
   const tryLookup = async (code: string): Promise<BarcodeResult | null> => {
     try {
-      const response = await fetch(getApiUrl(`/api/lookup/${code}`), {
+      const response = await fetch(getApiUrl(`/api/lookup/${code}${isVhs ? '?isVhs=true' : ''}`), {
         headers: getHeaders()
       });
       if (!response.ok) return null;
@@ -80,7 +80,7 @@ export const fetchMetadataByBarcode = async (barcode: string): Promise<BarcodeRe
   return result;
 };
 
-export const fetchMetadataByTitle = async (title: string, type: string): Promise<BarcodeResult | null> => {
+export const fetchMetadataByTitle = async (title: string, type: string, isVhs?: boolean): Promise<BarcodeResult | null> => {
   try {
     // Map collection type to backend API query type ('movie', 'book', 'music', or 'all')
     let backendType = 'all';
@@ -92,7 +92,7 @@ export const fetchMetadataByTitle = async (title: string, type: string): Promise
       backendType = 'music';
     }
 
-    const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(title)}&type=${backendType}`), {
+    const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(title)}&type=${backendType}${isVhs ? '&isVhs=true' : ''}`), {
       headers: getHeaders()
     });
     if (!response.ok) return null;

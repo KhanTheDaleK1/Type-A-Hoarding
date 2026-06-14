@@ -56,8 +56,9 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
       }
     }
 
+    const isVhsItem = collection.name.toLowerCase().includes('vhs') || collection.type.toLowerCase().includes('vhs') || (formData.mediaType?.toLowerCase() === 'vhs');
     setScanStatus('Searching Databases...');
-    const metadata = await fetchMetadataByBarcode(code);
+    const metadata = await fetchMetadataByBarcode(code, isVhsItem);
     
     if (metadata) {
       setScanStatus(`Found: ${metadata.title}`);

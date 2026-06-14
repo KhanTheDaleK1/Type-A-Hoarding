@@ -70,11 +70,15 @@ export const importGoodreadsCSV = async (file: File, collectionId: string) => {
 };
 
 export const fetchMetadataInBackground = async (items: Item[], collectionId?: string) => {
-  // Get collection type for smart searching
+  // Get collection type and details for smart searching
   let collType = 'Books';
+  let collIsVhs = false;
   if (collectionId) {
     const coll = await db.collections.get(collectionId);
-    if (coll) collType = coll.type;
+    if (coll) {
+      collType = coll.type;
+      collIsVhs = coll.name.toLowerCase().includes('vhs') || coll.type.toLowerCase().includes('vhs');
+    }
   }
 
   for (const item of items) {
@@ -83,15 +87,16 @@ export const fetchMetadataInBackground = async (items: Item[], collectionId?: st
 
     try {
       let metadata = null;
+      const isVhsItem = collIsVhs || (item.mediaType?.toLowerCase() === 'vhs');
       
       // Strategy 1: Barcode/ISBN
       if (item.customData.isbn) {
-        metadata = await fetchMetadataByBarcode(item.customData.isbn);
+        metadata = await fetchMetadataByBarcode(item.customData.isbn, isVhsItem);
       } 
       
       // Strategy 2: Title (specifically for movies/shows)
       if (!metadata && (collType === 'Movies' || collType === 'TV Shows')) {
-        metadata = await fetchMetadataByTitle(item.title, collType);
+        metadata = await fetchMetadataByTitle(item.title, collType, isVhsItem);
       }
 
       if (metadata) {

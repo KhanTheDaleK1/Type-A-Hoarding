@@ -184,6 +184,18 @@ async function resolveTitleFromSearchEngine(barcode) {
   return null;
 }
 
+// Enable CORS for all requests (including preflight)
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,Content-Type,X-TMDB-API-KEY,X-OMDB-API-KEY,Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // Serve static files from the 'dist' directory
 app.use(express.static(path.join(__dirname, 'dist')));
 app.use(express.json());
@@ -251,6 +263,7 @@ app.post('/api/github/callback', async (req, res) => {
 app.get('/api/lookup/:barcode', async (req, res) => {
   const tmdbKey = req.headers['x-tmdb-api-key'] || req.query.tmdb_key || TMDB_API_KEY;
   const omdbKey = req.headers['x-omdb-api-key'] || req.query.omdb_key || OMDB_API_KEY;
+  const isVhs = req.query.isVhs === 'true';
 
   let barcode = req.params.barcode.trim();
   const isCustomId = barcode.startsWith('tmdb_') || barcode.startsWith('mb_');
@@ -570,10 +583,18 @@ app.get('/api/lookup/:barcode', async (req, res) => {
               if (tmdbSearchRes.ok) {
                 const tmdbSearchData = await tmdbSearchRes.json();
                 if (tmdbSearchData.results && tmdbSearchData.results.length > 0) {
-                  const movieId = tmdbSearchData.results[0].id;
-                  const tmdbDetailRes = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${tmdbKey}&append_to_response=credits`);
-                  if (tmdbDetailRes.ok) {
-                    tmdbDetails = await tmdbDetailRes.json();
+                  // Filter by year <= 2006 if it is a VHS tape
+                  const filtered = tmdbSearchData.results.filter(m => {
+                    if (!isVhs) return true;
+                    const releaseYear = m.release_date ? parseInt(m.release_date.substring(0, 4)) : 0;
+                    return releaseYear > 0 && releaseYear <= 2006;
+                  });
+                  if (filtered.length > 0) {
+                    const movieId = filtered[0].id;
+                    const tmdbDetailRes = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${tmdbKey}&append_to_response=credits`);
+                    if (tmdbDetailRes.ok) {
+                      tmdbDetails = await tmdbDetailRes.json();
+                    }
                   }
                 }
               }
@@ -726,10 +747,18 @@ app.get('/api/lookup/:barcode', async (req, res) => {
 
           let tmdbDetails = null;
           if (tmdbSearchData && tmdbSearchData.results && tmdbSearchData.results.length > 0) {
-            const movieId = tmdbSearchData.results[0].id;
-            const tmdbDetailRes = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${tmdbKey}&append_to_response=credits`);
-            if (tmdbDetailRes.ok) {
-              tmdbDetails = await tmdbDetailRes.json();
+            // Filter by year <= 2006 if it is a VHS tape
+            const filtered = tmdbSearchData.results.filter(m => {
+              if (!isVhs) return true;
+              const releaseYear = m.release_date ? parseInt(m.release_date.substring(0, 4)) : 0;
+              return releaseYear > 0 && releaseYear <= 2006;
+            });
+            if (filtered.length > 0) {
+              const movieId = filtered[0].id;
+              const tmdbDetailRes = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${tmdbKey}&append_to_response=credits`);
+              if (tmdbDetailRes.ok) {
+                tmdbDetails = await tmdbDetailRes.json();
+              }
             }
           }
 
@@ -804,6 +833,7 @@ app.get('/api/search', async (req, res) => {
   const tmdbKey = req.headers['x-tmdb-api-key'] || req.query.tmdb_key || TMDB_API_KEY;
   const query = req.query.q;
   const type = req.query.type || 'all'; // 'all', 'book', 'movie', 'music'
+  const isVhs = req.query.isVhs === 'true';
 
   if (!query) {
     return res.status(400).json({ success: false, error: 'Query parameter "q" is required.' });
@@ -846,27 +876,44 @@ app.get('/api/search', async (req, res) => {
     // 2. Search movies (TMDb)
     if (type === 'all' || type === 'movie') {
       try {
-        const tmdbRes = await fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}&api_key=${tmdbKey}`);
-        if (tmdbRes.ok) {
-          const tmdbData = await tmdbRes.json();
-          if (tmdbData.results) {
-            tmdbData.results.slice(0, 5).forEach(m => {
-              results.push({
-                title: m.title,
-                creator: 'Movie',
-                type: 'movie',
-                publishedDate: m.release_date ? m.release_date.substring(0, 4) : 'N/A',
-                barcode: `tmdb_${m.id}`, // Custom TMDb ID prefix
-                thumbnail: m.poster_path ? `https://image.tmdb.org/t/p/w200${m.poster_path}` : '',
-                source: 'TMDb',
-                description: m.overview || '',
-                extra: {
-                  backdrop: m.backdrop_path ? `https://image.tmdb.org/t/p/w1280${m.backdrop_path}` : '',
-                  tmdbRating: m.vote_average
-                }
-              });
-            });
+        let tmdbRes = await fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}&api_key=${tmdbKey}`);
+        let tmdbData = tmdbRes.ok ? await tmdbRes.json() : null;
+
+        // Fallback: If no results and query contains a dash, try searching for the part before the dash
+        if ((!tmdbData || !tmdbData.results || tmdbData.results.length === 0) && query.includes(' - ')) {
+          const parts = query.split(' - ');
+          const simplifiedQuery = parts[0].trim();
+          console.log(`[Search API Fallback] No results for "${query}". Trying simplified query: "${simplifiedQuery}"`);
+          tmdbRes = await fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(simplifiedQuery)}&api_key=${tmdbKey}`);
+          if (tmdbRes.ok) {
+            tmdbData = await tmdbRes.json();
           }
+        }
+
+        if (tmdbData && tmdbData.results) {
+          // If isVhs is true, we filter out movies released after 2006 (end of VHS era)
+          const filteredResults = tmdbData.results.filter(m => {
+            if (!isVhs) return true;
+            const releaseYear = m.release_date ? parseInt(m.release_date.substring(0, 4)) : 0;
+            return releaseYear > 0 && releaseYear <= 2006;
+          });
+
+          filteredResults.slice(0, 5).forEach(m => {
+            results.push({
+              title: m.title,
+              creator: 'Movie',
+              type: 'movie',
+              publishedDate: m.release_date ? m.release_date.substring(0, 4) : 'N/A',
+              barcode: `tmdb_${m.id}`, // Custom TMDb ID prefix
+              thumbnail: m.poster_path ? `https://image.tmdb.org/t/p/w200${m.poster_path}` : '',
+              source: 'TMDb',
+              description: m.overview || '',
+              extra: {
+                backdrop: m.backdrop_path ? `https://image.tmdb.org/t/p/w1280${m.backdrop_path}` : '',
+                tmdbRating: m.vote_average
+              }
+            });
+          });
         }
       } catch (err) {
         console.error('[Search API Movie Error]', err.message);
