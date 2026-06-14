@@ -54,7 +54,7 @@ export const syncService = {
       const getRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.path}`, {
         headers: {
           'Authorization': `Bearer ${config.token}`,
-          'Accept': 'application/vnd.github+json'
+          'Accept': 'application/vnd.github.object'
         }
       });
       if (getRes.ok) {
@@ -95,23 +95,22 @@ export const syncService = {
     const res = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.path}`, {
       headers: {
         'Authorization': `Bearer ${config.token}`,
-        'Accept': 'application/vnd.github+json'
+        'Accept': 'application/vnd.github.raw'
       }
     });
 
     if (!res.ok) {
       if (res.status === 404) throw new Error('No backup found in repository.');
-      const error = await res.json();
-      throw new Error(error.message || 'Failed to pull from GitHub');
+      const errorText = await res.text().catch(() => 'Failed to pull from GitHub');
+      let msg = errorText;
+      try {
+        const errObj = JSON.parse(errorText);
+        msg = errObj.message || msg;
+      } catch (e) {}
+      throw new Error(msg);
     }
 
-    const data = await res.json();
-    const binary = atob(data.content);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    const content = new TextDecoder().decode(bytes);
+    const content = await res.text();
     const parsed = JSON.parse(content);
 
     if (parsed.collections && parsed.items) {
