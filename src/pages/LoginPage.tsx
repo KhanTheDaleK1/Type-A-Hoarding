@@ -18,7 +18,7 @@ const getQueryParam = (name: string): string | null => {
 };
 
 const getApiUrl = (path: string) => {
-  const base = localStorage.getItem('hoarding_api_url') || '';
+  const base = localStorage.getItem('hoarding_api_url') || 'https://hoardbackend.beechem.site';
   return `${base}${path}`;
 };
 
@@ -28,7 +28,7 @@ const LoginPage: React.FC = () => {
   const [isRegister, setIsRegister] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState<string | null>(null);
   const [showServerConfig, setShowServerConfig] = useState(false);
-  const [apiUrl, setApiUrl] = useState(() => localStorage.getItem('hoarding_api_url') || '');
+  const [apiUrl, setApiUrl] = useState(() => localStorage.getItem('hoarding_api_url') || 'https://hoardbackend.beechem.site');
   const { login } = useAuth();
   const navigate = useNavigate();
 

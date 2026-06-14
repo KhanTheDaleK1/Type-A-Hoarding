@@ -20,7 +20,7 @@ const Settings: React.FC = () => {
     syncService.getConfig() || { token: '', owner: '', repo: '', path: 'hoard_backup.json' }
   );
   const [syncStatus, setSyncStatus] = useState<{ type: 'idle' | 'loading' | 'success' | 'error', msg?: string }>({ type: 'idle' });
-  const [apiUrl, setApiUrl] = useState(() => localStorage.getItem('hoarding_api_url') || '');
+  const [apiUrl, setApiUrl] = useState(() => localStorage.getItem('hoarding_api_url') || 'https://hoardbackend.beechem.site');
 
   const handleSaveApiUrl = () => {
     const cleanUrl = apiUrl.trim().replace(/\/$/, '');

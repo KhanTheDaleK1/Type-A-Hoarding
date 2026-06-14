@@ -37,7 +37,7 @@ const CollectionView: React.FC = () => {
     setIsRepairing(true);
     try {
       // Test if backend is reachable
-      const base = localStorage.getItem('hoarding_api_url') || '';
+      const base = localStorage.getItem('hoarding_api_url') || 'https://hoardbackend.beechem.site';
       const testRes = await fetch(`${base}/api/github/config`).catch(() => null);
       if (!testRes || !testRes.ok) {
         alert('Cannot connect to the backend server. Please verify your "Backend API URL" in Settings and ensure the server is running!');

@@ -11,7 +11,7 @@ export interface BarcodeResult {
 }
 
 const getApiUrl = (path: string) => {
-  const base = localStorage.getItem('hoarding_api_url') || '';
+  const base = localStorage.getItem('hoarding_api_url') || 'https://hoardbackend.beechem.site';
   return `${base}${path}`;
 };
 
