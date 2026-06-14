@@ -64,7 +64,7 @@ const Dashboard: React.FC = () => {
   const filteredCollections = collections?.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     items?.some(i => i.collectionId === c.id && i.title.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  ).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true }));
 
   const totalValue = items?.reduce((sum, item) => sum + (item.estimatedValue || 0), 0) || 0;
 
