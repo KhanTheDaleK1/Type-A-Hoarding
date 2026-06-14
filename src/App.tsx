@@ -20,6 +20,12 @@ function AppContent() {
   useAutoSync();
 
   useEffect(() => {
+    // Auto-migrate old local IP URLs to the Cloudflare public URL
+    const oldApiUrl = localStorage.getItem('hoarding_api_url');
+    if (oldApiUrl && (oldApiUrl.includes('localhost') || oldApiUrl.includes('10.1.24.146'))) {
+      localStorage.setItem('hoarding_api_url', 'https://hoardbackend.beechem.site');
+    }
+
     // Apply persisted theme and accent
     const theme = localStorage.getItem('hoarding_theme') || 'light';
     const accent = localStorage.getItem('hoarding_accent') || 'purple';
