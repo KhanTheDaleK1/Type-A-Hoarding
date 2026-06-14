@@ -230,24 +230,30 @@ const Settings: React.FC = () => {
 
       // If GitHub sync is configured, push the cleaned database immediately
       const config = syncService.getConfig();
+      let syncMsg = '';
       if (config && config.token && config.owner && config.repo) {
-        setSyncStatus({ type: 'loading', msg: 'Deduplication complete! Pushing cleaned data to GitHub...' });
+        setSyncStatus({ type: 'loading', msg: 'Deduplication complete! Syncing cleaned data to GitHub...' });
         try {
           await syncService.push();
+          syncMsg = ' and synced to GitHub';
         } catch (pushErr: any) {
           console.error('Failed to push cleaned data to GitHub:', pushErr);
+          setSyncStatus({ 
+            type: 'error', 
+            msg: `Deduplicated locally, but failed to upload to GitHub: ${pushErr.message || pushErr}. Reload/sync cancelled to prevent override.` 
+          });
+          return; // STOP! Do not reload or proceed.
         }
       }
 
       setSyncStatus({ 
         type: 'success', 
-        msg: `Deduplication complete! Removed ${collectionsDeleted} duplicate collections and ${itemsDeleted} duplicate items.` 
+        msg: `Deduplication complete! Removed ${collectionsDeleted} duplicate collections and ${itemsDeleted} duplicate items${syncMsg}.` 
       });
       
       setTimeout(() => {
         setSyncStatus({ type: 'idle' });
-        window.location.reload();
-      }, 3000);
+      }, 5000);
       
     } catch (e: any) {
       setSyncStatus({ type: 'error', msg: `Deduplication failed: ${e.message}` });
