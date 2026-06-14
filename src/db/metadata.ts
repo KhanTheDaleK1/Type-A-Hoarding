@@ -15,13 +15,32 @@ const getApiUrl = (path: string) => {
   return `${base}${path}`;
 };
 
+const getHeaders = () => {
+  const headers: Record<string, string> = {
+    'Accept': 'application/json'
+  };
+  const savedKeys = localStorage.getItem('hoarding_api_keys');
+  if (savedKeys) {
+    try {
+      const keys = JSON.parse(savedKeys);
+      if (keys.tmdb) headers['X-TMDB-API-KEY'] = keys.tmdb;
+      if (keys.omdb) headers['X-OMDB-API-KEY'] = keys.omdb;
+    } catch (e) {
+      console.error('Failed to parse hoarding_api_keys', e);
+    }
+  }
+  return headers;
+};
+
 export const fetchMetadataByBarcode = async (barcode: string): Promise<BarcodeResult | null> => {
   // 1. Clean and Normalize
   let cleanBarcode = barcode.replace(/[-\s]/g, '');
 
   const tryLookup = async (code: string): Promise<BarcodeResult | null> => {
     try {
-      const response = await fetch(getApiUrl(`/api/lookup/${code}`));
+      const response = await fetch(getApiUrl(`/api/lookup/${code}`), {
+        headers: getHeaders()
+      });
       if (!response.ok) return null;
       
       const data = await response.json();
@@ -73,7 +92,9 @@ export const fetchMetadataByTitle = async (title: string, type: string): Promise
       backendType = 'music';
     }
 
-    const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(title)}&type=${backendType}`));
+    const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(title)}&type=${backendType}`), {
+      headers: getHeaders()
+    });
     if (!response.ok) return null;
 
     const data = await response.json();

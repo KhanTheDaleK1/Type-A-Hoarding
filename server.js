@@ -220,6 +220,9 @@ app.post('/api/github/callback', async (req, res) => {
 
 // API route for barcode lookup
 app.get('/api/lookup/:barcode', async (req, res) => {
+  const tmdbKey = req.headers['x-tmdb-api-key'] || req.query.tmdb_key || TMDB_API_KEY;
+  const omdbKey = req.headers['x-omdb-api-key'] || req.query.omdb_key || OMDB_API_KEY;
+
   let barcode = req.params.barcode.trim();
   const isCustomId = barcode.startsWith('tmdb_') || barcode.startsWith('mb_');
   if (!isCustomId) {
@@ -244,7 +247,7 @@ app.get('/api/lookup/:barcode', async (req, res) => {
       try {
         const movieId = barcode.replace('tmdb_', '');
         console.log(`[TMDb Direct] Querying Movie ID: ${movieId}`);
-        const tmdbDetailRes = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${TMDB_API_KEY}&append_to_response=credits`);
+        const tmdbDetailRes = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${tmdbKey}&append_to_response=credits`);
         
         if (tmdbDetailRes.ok) {
           const tmdbDetails = await tmdbDetailRes.json();
@@ -271,7 +274,7 @@ app.get('/api/lookup/:barcode', async (req, res) => {
           };
 
           try {
-            const omdbRes = await fetch(`http://www.omdbapi.com/?t=${encodeURIComponent(result.title)}&apikey=${OMDB_API_KEY}`);
+            const omdbRes = await fetch(`http://www.omdbapi.com/?t=${encodeURIComponent(result.title)}&apikey=${omdbKey}`);
             if (omdbRes.ok) {
               const omdbData = await omdbRes.json();
               if (omdbData.Response === 'True') {
@@ -538,8 +541,8 @@ app.get('/api/lookup/:barcode', async (req, res) => {
               console.log(`[Movie Enrichment] Querying TMDb & OMDb for: "${searchTitle}"`);
               
               const [tmdbSearchRes, omdbRes] = await Promise.all([
-                fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(searchTitle)}&api_key=${TMDB_API_KEY}`),
-                fetch(`http://www.omdbapi.com/?t=${encodeURIComponent(searchTitle)}&apikey=${OMDB_API_KEY}`)
+                fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(searchTitle)}&api_key=${tmdbKey}`),
+                fetch(`http://www.omdbapi.com/?t=${encodeURIComponent(searchTitle)}&apikey=${omdbKey}`)
               ]);
 
               let tmdbDetails = null;
@@ -547,7 +550,7 @@ app.get('/api/lookup/:barcode', async (req, res) => {
                 const tmdbSearchData = await tmdbSearchRes.json();
                 if (tmdbSearchData.results && tmdbSearchData.results.length > 0) {
                   const movieId = tmdbSearchData.results[0].id;
-                  const tmdbDetailRes = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${TMDB_API_KEY}&append_to_response=credits`);
+                  const tmdbDetailRes = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${tmdbKey}&append_to_response=credits`);
                   if (tmdbDetailRes.ok) {
                     tmdbDetails = await tmdbDetailRes.json();
                   }
@@ -669,10 +672,10 @@ app.get('/api/lookup/:barcode', async (req, res) => {
 
           console.log(`[Fallback Movie Search] Searching TMDb & OMDb for: "${movieSearchTitle}"`);
           
-          let tmdbSearchRes = await fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(movieSearchTitle)}&api_key=${TMDB_API_KEY}`);
+          let tmdbSearchRes = await fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(movieSearchTitle)}&api_key=${tmdbKey}`);
           let tmdbSearchData = tmdbSearchRes.ok ? await tmdbSearchRes.json() : null;
           
-          let omdbRes = await fetch(`http://www.omdbapi.com/?t=${encodeURIComponent(movieSearchTitle)}&apikey=${OMDB_API_KEY}`);
+          let omdbRes = await fetch(`http://www.omdbapi.com/?t=${encodeURIComponent(movieSearchTitle)}&apikey=${omdbKey}`);
           let omdbData = omdbRes.ok ? await omdbRes.json() : null;
 
           // Retry with first 5 words if no results found
@@ -683,8 +686,8 @@ app.get('/api/lookup/:barcode', async (req, res) => {
               console.log(`[Fallback Movie Search Retry] No results for full title. Retrying with truncated title: "${truncatedTitle}"`);
               
               const [retryTmdbRes, retryOmdbRes] = await Promise.all([
-                fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(truncatedTitle)}&api_key=${TMDB_API_KEY}`),
-                fetch(`http://www.omdbapi.com/?t=${encodeURIComponent(truncatedTitle)}&apikey=${OMDB_API_KEY}`)
+                fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(truncatedTitle)}&api_key=${tmdbKey}`),
+                fetch(`http://www.omdbapi.com/?t=${encodeURIComponent(truncatedTitle)}&apikey=${omdbKey}`)
               ]);
               
               if (retryTmdbRes.ok) {
@@ -705,7 +708,7 @@ app.get('/api/lookup/:barcode', async (req, res) => {
           let tmdbDetails = null;
           if (tmdbSearchData && tmdbSearchData.results && tmdbSearchData.results.length > 0) {
             const movieId = tmdbSearchData.results[0].id;
-            const tmdbDetailRes = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${TMDB_API_KEY}&append_to_response=credits`);
+            const tmdbDetailRes = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${tmdbKey}&append_to_response=credits`);
             if (tmdbDetailRes.ok) {
               tmdbDetails = await tmdbDetailRes.json();
             }
@@ -781,6 +784,7 @@ app.get('/api/lookup/:barcode', async (req, res) => {
 
 // API route for search by title
 app.get('/api/search', async (req, res) => {
+  const tmdbKey = req.headers['x-tmdb-api-key'] || req.query.tmdb_key || TMDB_API_KEY;
   const query = req.query.q;
   const type = req.query.type || 'all'; // 'all', 'book', 'movie', 'music'
 
@@ -825,7 +829,7 @@ app.get('/api/search', async (req, res) => {
     // 2. Search movies (TMDb)
     if (type === 'all' || type === 'movie') {
       try {
-        const tmdbRes = await fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}&api_key=${TMDB_API_KEY}`);
+        const tmdbRes = await fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}&api_key=${tmdbKey}`);
         if (tmdbRes.ok) {
           const tmdbData = await tmdbRes.json();
           if (tmdbData.results) {
