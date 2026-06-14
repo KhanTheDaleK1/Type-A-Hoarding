@@ -39,6 +39,34 @@ function saveCache() {
   }
 }
 
+// Helper to fetch an image URL and convert it to a Base64 data URL
+async function fetchUrlAsBase64(url) {
+  if (!url) return '';
+  if (url.startsWith('data:')) return url; // Already Base64
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return url;
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const contentType = res.headers.get('content-type') || 'image/jpeg';
+    return `data:${contentType};base64,${buffer.toString('base64')}`;
+  } catch (err) {
+    console.error(`[Base64 Convert Error] Failed for ${url}:`, err.message);
+    return url; // Fallback to original URL
+  }
+}
+
+// Helper to process, cache, and send the lookup result with a Base64 thumbnail
+async function sendResult(res, barcode, result) {
+  if (result.thumbnail) {
+    result.thumbnail = await fetchUrlAsBase64(result.thumbnail);
+  }
+  cache[barcode] = result;
+  saveCache();
+  return res.json(result);
+}
+
+
 // Search engine scraping fallback to get product title from barcode
 async function resolveTitleFromSearchEngine(barcode) {
   const url = `https://html.duckduckgo.com/html/?q=${barcode}`;
@@ -288,9 +316,7 @@ app.get('/api/lookup/:barcode', async (req, res) => {
             console.warn('OMDb lookup failed during TMDb direct lookup:', e.message);
           }
 
-          cache[barcode] = result;
-          saveCache();
-          return res.json(result);
+          return sendResult(res, barcode, result);
         }
       } catch (err) {
         console.error('[TMDb Direct Error]', err.message);
@@ -339,9 +365,7 @@ app.get('/api/lookup/:barcode', async (req, res) => {
             }
           };
 
-          cache[barcode] = result;
-          saveCache();
-          return res.json(result);
+          return sendResult(res, barcode, result);
         }
       } catch (err) {
         console.error('[MusicBrainz Direct Error]', err.message);
@@ -379,9 +403,7 @@ app.get('/api/lookup/:barcode', async (req, res) => {
               }
             };
             
-            cache[barcode] = result;
-            saveCache();
-            return res.json(result);
+            return sendResult(res, barcode, result);
           }
         }
       } catch (bookErr) {
@@ -432,9 +454,7 @@ app.get('/api/lookup/:barcode', async (req, res) => {
             }
           };
 
-          cache[barcode] = result;
-          saveCache();
-          return res.json(result);
+          return sendResult(res, barcode, result);
         }
       }
     } catch (mbErr) {
@@ -614,9 +634,7 @@ app.get('/api/lookup/:barcode', async (req, res) => {
             }
           }
 
-          cache[barcode] = result;
-          saveCache();
-          return res.json(result);
+          return sendResult(res, barcode, result);
         } else if (data.code === 'INVALID_UPC') {
           return res.status(400).json({ success: false, error: 'Invalid barcode checksum or format according to UPC standards.' });
         } else {
@@ -762,9 +780,7 @@ app.get('/api/lookup/:barcode', async (req, res) => {
           console.error('[Fallback Enrichment Error]', enrichErr.message);
         }
 
-        cache[barcode] = result;
-        saveCache();
-        return res.json(result);
+        return sendResult(res, barcode, result);
       }
     } catch (fallbackErr) {
       console.error('[Search Fallback Process Error]', fallbackErr.message);
@@ -889,6 +905,11 @@ app.get('/api/search', async (req, res) => {
       }
     }
 
+    for (const item of results) {
+      if (item.thumbnail) {
+        item.thumbnail = await fetchUrlAsBase64(item.thumbnail);
+      }
+    }
     return res.json({ success: true, results });
 
   } catch (err) {
