@@ -386,10 +386,44 @@ app.get('/api/lookup/:barcode', async (req, res) => {
       }
     }
 
-    // 1. Try Book Lookup (Open Library) if it matches standard ISBN lengths (10 or 13)
+    // 1. Try Book Lookup (Google Books & Open Library) if it matches standard ISBN lengths (10 or 13)
     if (barcode.length === 10 || barcode.length === 13) {
       try {
-        console.log(`[Open Library] Querying ISBN: ${barcode}`);
+        console.log(`[Google Books] Querying ISBN: ${barcode}`);
+        const googleBooksRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${barcode}`);
+        if (googleBooksRes.ok) {
+          const gbData = await googleBooksRes.json();
+          if (gbData.items && gbData.items.length > 0) {
+            const bookInfo = gbData.items[0].volumeInfo;
+            const thumbnail = bookInfo.imageLinks?.thumbnail || bookInfo.imageLinks?.smallThumbnail || '';
+            const result = {
+              success: true,
+              source: 'Google Books',
+              barcode,
+              title: bookInfo.title || 'Unknown Title',
+              subtitle: bookInfo.subtitle || '',
+              creator: bookInfo.authors?.join(', ') || 'Unknown Author',
+              type: 'book',
+              description: bookInfo.description || 'No description available.',
+              thumbnail: thumbnail,
+              publisher: bookInfo.publisher || 'Unknown Publisher',
+              publishedDate: bookInfo.publishedDate || 'Unknown Date',
+              extra: {
+                pages: bookInfo.pageCount || null,
+                subjects: bookInfo.categories || [],
+                googleBooksUrl: bookInfo.infoLink || ''
+              }
+            };
+            return sendResult(res, barcode, result);
+          }
+        }
+      } catch (gbErr) {
+        console.error('[Google Books Lookup Error]', gbErr.message);
+      }
+
+      // Fallback to Open Library
+      try {
+        console.log(`[Open Library] Querying ISBN fallback: ${barcode}`);
         const openLibraryRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${barcode}&jscmd=data&format=json`);
         
         if (openLibraryRes.ok) {
@@ -844,32 +878,70 @@ app.get('/api/search', async (req, res) => {
   try {
     const results = [];
 
-    // 1. Search books (Open Library)
+    // 1. Search books (Google Books with Open Library fallback)
     if (type === 'all' || type === 'book') {
+      let booksFound = false;
       try {
-        const olRes = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=5`);
-        if (olRes.ok) {
-          const olData = await olRes.json();
-          if (olData.docs) {
-            olData.docs.slice(0, 5).forEach(doc => {
+        console.log(`[Google Books Search] Querying: "${query}"`);
+        const gbRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=5`);
+        if (gbRes.ok) {
+          const gbData = await gbRes.json();
+          if (gbData.items && gbData.items.length > 0) {
+            booksFound = true;
+            gbData.items.slice(0, 5).forEach(item => {
+              const info = item.volumeInfo;
+              const isbn = info.industryIdentifiers?.find(id => id.type === 'ISBN_13' || id.type === 'ISBN_10')?.identifier || item.id;
+              const thumbnail = info.imageLinks?.thumbnail || info.imageLinks?.smallThumbnail || '';
               results.push({
-                title: doc.title,
-                creator: doc.author_name?.join(', ') || 'Unknown Author',
+                title: info.title,
+                creator: info.authors?.join(', ') || 'Unknown Author',
                 type: 'book',
-                publishedDate: doc.first_publish_year || 'N/A',
-                barcode: doc.isbn?.[0] || doc.key, // ISBN or OL key fallback
-                thumbnail: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : '',
-                source: 'Open Library',
+                publishedDate: info.publishedDate || 'N/A',
+                barcode: isbn,
+                thumbnail: thumbnail,
+                source: 'Google Books',
+                description: info.description || undefined,
                 extra: {
-                  pages: doc.number_of_pages_median || null,
-                  openLibraryUrl: doc.key ? `https://openlibrary.org${doc.key}` : ''
+                  pages: info.pageCount || null,
+                  genres: info.categories || [],
+                  googleBooksUrl: info.infoLink || ''
                 }
               });
             });
           }
         }
       } catch (err) {
-        console.error('[Search API Book Error]', err.message);
+        console.error('[Google Books Search Error]', err.message);
+      }
+
+      // Fallback to Open Library search if no books found
+      if (!booksFound) {
+        try {
+          console.log(`[Open Library Search Fallback] Querying: "${query}"`);
+          const olRes = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=5`);
+          if (olRes.ok) {
+            const olData = await olRes.json();
+            if (olData.docs) {
+              olData.docs.slice(0, 5).forEach(doc => {
+                results.push({
+                  title: doc.title,
+                  creator: doc.author_name?.join(', ') || 'Unknown Author',
+                  type: 'book',
+                  publishedDate: doc.first_publish_year || 'N/A',
+                  barcode: doc.isbn?.[0] || doc.key,
+                  thumbnail: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : '',
+                  source: 'Open Library',
+                  extra: {
+                    pages: doc.number_of_pages_median || null,
+                    openLibraryUrl: doc.key ? `https://openlibrary.org${doc.key}` : ''
+                  }
+                });
+              });
+            }
+          }
+        } catch (err) {
+          console.error('[Search API Book Fallback Error]', err.message);
+        }
       }
     }
 
