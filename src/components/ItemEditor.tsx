@@ -184,7 +184,7 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
 
   const [scanStatus, setScanStatus] = useState<string | undefined>();
 
-  const handleScan = async (code: string) => {
+  const handleScan = async (code: string, isBatch?: boolean) => {
     if (scanStatus) return; // Prevent double scans
     
     // Check for Shared Collection QR Code
@@ -208,6 +208,7 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
       } catch (e) {
         setScanStatus('Invalid Share Code');
       }
+      return;
     }
 
     const isVhsItem = collection.name.toLowerCase().includes('vhs') || collection.type.toLowerCase().includes('vhs') || (formData.mediaType?.toLowerCase() === 'vhs');
@@ -239,8 +240,28 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
         }
       };
 
-      await db.items.add(newItem);
-      setTimeout(() => setScanStatus(undefined), 2000);
+      if (isBatch) {
+        // Batch Mode: Immediately insert to IndexedDB
+        await db.items.add(newItem);
+        setTimeout(() => setScanStatus(undefined), 1500);
+      } else {
+        // Normal Mode: Populate form and close scanner so user can verify/edit
+        setFormData(prev => ({
+          ...prev,
+          title: newItem.title,
+          mediaType: newItem.mediaType,
+          images: newItem.images,
+          notes: newItem.notes,
+          customData: {
+            ...prev.customData,
+            ...newItem.customData
+          }
+        }));
+        setTimeout(() => {
+          setScanStatus(undefined);
+          setShowScanner(false);
+        }, 1500);
+      }
     } else {
       setScanStatus(`Not Found: ${code}`);
       setTimeout(() => setScanStatus(undefined), 4000);

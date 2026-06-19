@@ -3,7 +3,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { X, CameraOff, RefreshCw, Camera, Zap } from 'lucide-react';
 
 interface ScannerProps {
-  onScan: (decodedText: string) => void;
+  onScan: (decodedText: string, isBatch?: boolean) => void;
   onClose: () => void;
   status?: string;
 }
@@ -13,8 +13,29 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
   const [isInitializing, setIsInitializing] = useState(true);
   const [cameras, setCameras] = useState<any[]>([]);
   const [activeCameraId, setActiveCameraId] = useState<string | null>(null);
+  const [batchMode, setBatchMode] = useState<boolean>(() => {
+    return localStorage.getItem('hoarding_batch_mode') === 'true';
+  });
   const html5QrCodeScanner = useRef<Html5Qrcode | null>(null);
   const scanLock = useRef<boolean>(false);
+
+  const playBeep = () => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1000, ctx.currentTime); // High pitch grocery store beep
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.12);
+    } catch (e) {
+      console.warn("Beep audio blocked or failed", e);
+    }
+  };
 
   const stopScanner = async () => {
     if (html5QrCodeScanner.current && html5QrCodeScanner.current.isScanning) {
@@ -69,13 +90,15 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
         config,
         (decodedText) => {
           if (!scanLock.current) {
-            // Haptic Feedback (Modern PWA requirement)
+            // Haptic & Sound Feedback (Grocery Store feel)
             if ('vibrate' in navigator) navigator.vibrate(100);
+            playBeep();
             
             scanLock.current = true;
-            onScan(decodedText);
-            // 3s lockout to show status message
-            setTimeout(() => { scanLock.current = false; }, 3000);
+            onScan(decodedText, batchMode);
+            // Lock scan for 2s in batch mode so user can move next, 3s in normal
+            const lockTime = batchMode ? 2000 : 3000;
+            setTimeout(() => { scanLock.current = false; }, lockTime);
           }
         },
         () => {} // Silent frame errors
@@ -131,11 +154,21 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, onClose, status }) => {
 
       {/* UI Overlays */}
       <div className="absolute inset-0 flex flex-col justify-between p-6 pointer-events-none">
-        <div className="flex justify-between items-start pointer-events-auto">
+        <div className="flex justify-between items-start pointer-events-auto w-full gap-4">
           <div className="bg-black/40 backdrop-blur-xl rounded-2xl px-4 py-2 flex items-center gap-3 text-white border border-white/10 shadow-2xl">
             <Zap size={18} className="text-yellow-400" fill="currentColor" />
             <span className="text-xs font-black uppercase tracking-widest">Ultimate Scanner</span>
           </div>
+          <button
+            onClick={() => {
+              const nextVal = !batchMode;
+              setBatchMode(nextVal);
+              localStorage.setItem('hoarding_batch_mode', nextVal ? 'true' : 'false');
+            }}
+            className={`px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all ${batchMode ? 'bg-success text-white border-success shadow-[0_0_15px_rgba(16,185,129,0.5)]' : 'bg-black/40 text-white border-white/10'}`}
+          >
+            {batchMode ? 'Batch Mode: ON' : 'Batch Mode: OFF'}
+          </button>
           <button 
             onClick={onClose} 
             className="p-3 bg-black/40 backdrop-blur-xl rounded-2xl text-white border border-white/10 shadow-2xl pointer-events-auto active:scale-90 transition-all"

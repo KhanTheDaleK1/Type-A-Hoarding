@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { 
   ArrowLeft, Plus, Search, Filter, X, 
-  LayoutList, Grid, List, Shuffle, Share2, Menu, Wand2
+  LayoutList, Grid, List, Shuffle, Share2, Menu, Wand2, CheckCircle2
 } from 'lucide-react';
 import { initialFilters, filterItems } from '../hooks/useFilters';
 import type { FilterOptions } from '../hooks/useFilters';
@@ -275,13 +275,40 @@ const CollectionView: React.FC = () => {
             <Link 
               key={item.id} 
               to={`/item/${item.id}`} 
-              className={`item-row ${item.watched ? 'opacity-40 grayscale-[0.5]' : ''}`}
+              className={`item-row group ${item.watched ? 'opacity-40 grayscale-[0.5]' : ''}`}
               id={showAnchor ? `letter-${firstLetter}` : undefined}
             >
-              <div className="item-thumbnail">
+              <div className="item-thumbnail relative">
                 {item.images[0] ? <img src={item.images[0]} alt="" /> : <div className="placeholder" />}
+                
+                {/* Detailed & Grid overlay checkmark */}
+                {viewMode !== 'compact' && (
+                  <button
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const dateField = collection.type === 'Books' ? 'dateRead' : 'dateWatched';
+                      await db.items.update(item.id, { 
+                        watched: !item.watched, 
+                        customData: { 
+                          ...item.customData, 
+                          [dateField]: !item.watched ? new Date().toISOString().split('T')[0] : '' 
+                        } 
+                      });
+                    }}
+                    className={`absolute bottom-2 right-2 p-2 rounded-full border shadow-xl backdrop-blur-md transition-all active:scale-75 pointer-events-auto z-20 ${
+                      item.watched 
+                        ? 'bg-success text-white border-success' 
+                        : 'bg-black/60 text-white/60 border-white/10 hover:bg-black/80 hover:text-white lg:opacity-0 lg:group-hover:opacity-100'
+                    }`}
+                    title={item.watched ? `Mark as Un${collection.type === 'Books' ? 'read' : 'watched'}` : `Mark as ${collection.type === 'Books' ? 'Read' : 'Watched'}`}
+                  >
+                    <CheckCircle2 size={16} className={item.watched ? 'fill-white/20' : ''} />
+                  </button>
+                )}
               </div>
-              <div className="item-info">
+              
+              <div className="item-info flex-grow">
                 <div className="flex justify-between items-start">
                   <h3 className="font-bold">{item.title}</h3>
                 </div>
@@ -310,6 +337,32 @@ const CollectionView: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* Compact view inline checkmark on the right */}
+              {viewMode === 'compact' && (
+                <button
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const dateField = collection.type === 'Books' ? 'dateRead' : 'dateWatched';
+                    await db.items.update(item.id, { 
+                      watched: !item.watched, 
+                      customData: { 
+                        ...item.customData, 
+                        [dateField]: !item.watched ? new Date().toISOString().split('T')[0] : '' 
+                      } 
+                    });
+                  }}
+                  className={`p-2 rounded-xl transition-all ml-auto pointer-events-auto z-20 ${
+                    item.watched 
+                      ? 'text-success hover:bg-success/10' 
+                      : 'text-gray-400 hover:bg-accent/10 hover:text-accent'
+                  }`}
+                  title={item.watched ? `Mark as Un${collection.type === 'Books' ? 'read' : 'watched'}` : `Mark as ${collection.type === 'Books' ? 'Read' : 'Watched'}`}
+                >
+                  <CheckCircle2 size={20} className={item.watched ? 'fill-success/20' : ''} />
+                </button>
+              )}
             </Link>
           );
         })}
