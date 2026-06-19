@@ -1152,6 +1152,20 @@ ${fieldsPrompt}`;
 
     console.log(`[Gemini API] Querying ${geminiModel} for image identification (collection type: ${collectionType})...`);
     
+    // Log the list of models from Gemini to see valid identifiers
+    try {
+      const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${geminiKey}`);
+      if (listRes.ok) {
+        const listData = await listRes.json();
+        const names = listData.models?.map((m) => m.name);
+        console.log('[Gemini API] Available models for this key:', JSON.stringify(names));
+      } else {
+        console.warn('[Gemini API] Failed to list models:', listRes.status);
+      }
+    } catch (e) {
+      console.warn('[Gemini API] Error listing models:', e.message);
+    }
+
     let response = await fetch(geminiUrl, {
       method: 'POST',
       headers: {
@@ -1165,7 +1179,7 @@ ${fieldsPrompt}`;
       const errText = await response.clone().text();
       console.warn(`[Gemini API Warning] Primary model ${geminiModel} failed with status ${response.status}: ${errText}. Attempting fallback models...`);
       
-      const fallbacks = ['gemini-2.0-flash', 'gemini-1.5-flash'].filter(m => m !== geminiModel);
+      const fallbacks = ['gemini-2.5-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-2.0-flash'].filter(m => m !== geminiModel);
       for (const fallbackModel of fallbacks) {
         console.log(`[Gemini API] Querying fallback model: ${fallbackModel}...`);
         const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent?key=${geminiKey}`;
