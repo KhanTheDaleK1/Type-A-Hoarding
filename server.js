@@ -188,7 +188,7 @@ async function resolveTitleFromSearchEngine(barcode) {
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,Content-Type,X-TMDB-API-KEY,X-OMDB-API-KEY,X-GEMINI-API-KEY,Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,Content-Type,X-TMDB-API-KEY,X-OMDB-API-KEY,X-GEMINI-API-KEY,X-GEMINI-MODEL,Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
@@ -1073,9 +1073,10 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// Route for AI visual recognition of collectibles using Gemini 3.5 Flash
+// Route for AI visual recognition of collectibles using Gemini 3.5 Flash (or dynamically requested model version)
 app.post('/api/identify', async (req, res) => {
   const geminiKey = req.headers['x-gemini-api-key'] || req.body.gemini_key;
+  const geminiModel = req.headers['x-gemini-model'] || req.body.gemini_model || 'gemini-3.5-flash';
   const image = req.body.image;
   const collectionType = req.body.collectionType || 'Custom';
   const collectionName = req.body.collectionName || '';
@@ -1093,7 +1094,7 @@ app.post('/api/identify', async (req, res) => {
     // Strip base64 data prefix if present
     const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${geminiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`;
     
     const fieldsPrompt = customFields.length > 0
       ? `The collection defines these custom fields. You MUST map the values you extract to these exact keys in the "customData" object (only include keys that exist in this list):
@@ -1149,7 +1150,7 @@ ${fieldsPrompt}`;
       }
     };
 
-    console.log(`[Gemini API] Querying Gemini 3.5 Flash for image identification (collection type: ${collectionType})...`);
+    console.log(`[Gemini API] Querying ${geminiModel} for image identification (collection type: ${collectionType})...`);
     
     const response = await fetch(geminiUrl, {
       method: 'POST',

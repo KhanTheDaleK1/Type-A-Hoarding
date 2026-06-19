@@ -77,6 +77,33 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
         return;
       }
 
+      // Query latest models list dynamically to auto-update
+      let resolvedModel = 'gemini-3.5-flash';
+      try {
+        const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${geminiKey}`);
+        if (modelsRes.ok) {
+          const modelsData = await modelsRes.json();
+          const flashModels = modelsData.models
+            ?.map((m: any) => m.name.replace('models/', ''))
+            .filter((name: string) => 
+              name.includes('flash') && 
+              !name.includes('tuning') && 
+              !name.includes('experimental') && 
+              !name.includes('exp')
+            );
+          if (flashModels && flashModels.length > 0) {
+            const getVersion = (name: string) => {
+              const match = name.match(/gemini-(\d+(?:\.\d+)?)-flash/);
+              return match ? parseFloat(match[1]) : 0;
+            };
+            flashModels.sort((a: string, b: string) => getVersion(b) - getVersion(a));
+            resolvedModel = flashModels[0];
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to dynamically fetch Gemini models, using default:', err);
+      }
+
       const apiUrl = localStorage.getItem('hoarding_api_url') || 'https://hoardbackend.beechem.site';
 
       // 4. Send to backend
@@ -84,7 +111,8 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-GEMINI-API-KEY': geminiKey
+          'X-GEMINI-API-KEY': geminiKey,
+          'X-GEMINI-MODEL': resolvedModel
         },
         body: JSON.stringify({
           image: compressedImage,
