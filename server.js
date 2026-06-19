@@ -1073,7 +1073,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// Route for AI visual recognition of collectibles using Gemini 2.0 Flash
+// Route for AI visual recognition of collectibles using Gemini 3.5 Flash
 app.post('/api/identify', async (req, res) => {
   const geminiKey = req.headers['x-gemini-api-key'] || req.body.gemini_key;
   const image = req.body.image;
@@ -1093,7 +1093,7 @@ app.post('/api/identify', async (req, res) => {
     // Strip base64 data prefix if present
     const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${geminiKey}`;
     
     const fieldsPrompt = customFields.length > 0
       ? `The collection defines these custom fields. You MUST map the values you extract to these exact keys in the "customData" object (only include keys that exist in this list):
@@ -1149,7 +1149,7 @@ ${fieldsPrompt}`;
       }
     };
 
-    console.log(`[Gemini API] Querying Gemini 2.0 Flash for image identification (collection type: ${collectionType})...`);
+    console.log(`[Gemini API] Querying Gemini 3.5 Flash for image identification (collection type: ${collectionType})...`);
     
     const response = await fetch(geminiUrl, {
       method: 'POST',
