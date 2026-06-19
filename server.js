@@ -1152,13 +1152,44 @@ ${fieldsPrompt}`;
 
     console.log(`[Gemini API] Querying ${geminiModel} for image identification (collection type: ${collectionType})...`);
     
-    const response = await fetch(geminiUrl, {
+    let response = await fetch(geminiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(requestBody)
     });
+
+    // If the primary model fails due to high load, rate limits, or server error, attempt fallback models
+    if (!response.ok && (response.status === 503 || response.status === 429 || response.status === 500)) {
+      const errText = await response.clone().text();
+      console.warn(`[Gemini API Warning] Primary model ${geminiModel} failed with status ${response.status}: ${errText}. Attempting fallback models...`);
+      
+      const fallbacks = ['gemini-2.0-flash', 'gemini-1.5-flash'].filter(m => m !== geminiModel);
+      for (const fallbackModel of fallbacks) {
+        console.log(`[Gemini API] Querying fallback model: ${fallbackModel}...`);
+        const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent?key=${geminiKey}`;
+        try {
+          const fallbackRes = await fetch(fallbackUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+          });
+          if (fallbackRes.ok) {
+            response = fallbackRes;
+            console.log(`[Gemini API] Fallback to ${fallbackModel} succeeded.`);
+            break;
+          } else {
+            const fbErrText = await fallbackRes.text();
+            console.warn(`[Gemini API Warning] Fallback to ${fallbackModel} failed: ${fbErrText}`);
+          }
+        } catch (e) {
+          console.warn(`[Gemini API Warning] Fallback network error for ${fallbackModel}:`, e.message);
+        }
+      }
+    }
 
     if (!response.ok) {
       const errText = await response.text();
