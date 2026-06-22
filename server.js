@@ -1105,7 +1105,7 @@ app.post('/api/identify-batch', async (req, res) => {
       - description (String): A brief physical description of the specific copy in the photo (e.g. 'Hardcover, slightly worn').
       - customData (Object): ${customPrompt}
 
-      Return ONLY raw JSON formatting without markdown formatting like ```json. Output format: { "results": [ { ... } ] }`;
+      Return ONLY raw JSON formatting without markdown formatting like \`\`\`json. Output format: { "results": [ { ... } ] }`;
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
       method: 'POST',
@@ -1158,7 +1158,7 @@ app.post('/api/identify-batch', async (req, res) => {
     return res.status(500).json({ success: false, error: 'Internal server error during batch identification.' });
   }
 });
-\napp.post('/api/identify', async (req, res) => {
+app.post('/api/identify', async (req, res) => {
   const geminiKey = req.headers['x-gemini-api-key'] || req.body.gemini_key;
   const geminiModel = req.headers['x-gemini-model'] || req.body.gemini_model || 'gemini-3.5-flash';
   const image = req.body.image;
