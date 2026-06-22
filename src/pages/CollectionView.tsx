@@ -28,6 +28,7 @@ const CollectionView: React.FC = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [isRepairing, setIsRepairing] = useState(false);
   const [filters, setFilters] = useState<FilterOptions>(initialFilters);
+  const [activeSubcategory, setActiveSubcategory] = useState<string>('All');
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     return (localStorage.getItem('hoarding_view_mode') as ViewMode) || 'detailed';
   });
@@ -136,9 +137,17 @@ const CollectionView: React.FC = () => {
     setShowWheel(false);
   };
 
+  const subcategoryField = useMemo(() => {
+    return collection?.customFields?.find(f => f.type === 'select');
+  }, [collection]);
+
   const filteredItems = useMemo(() => {
-    return rawItems ? filterItems(rawItems, filters) : [];
-  }, [rawItems, filters]);
+    let items = rawItems ? filterItems(rawItems, filters) : [];
+    if (activeSubcategory !== 'All' && subcategoryField) {
+      items = items.filter(item => item.customData?.[subcategoryField.id] === activeSubcategory);
+    }
+    return items;
+  }, [rawItems, filters, activeSubcategory, subcategoryField]);
 
   const alphabet = useMemo(() => {
     const chars = new Set(filteredItems.map(i => i.sortTitle?.[0]?.toUpperCase() || '#'));
@@ -189,6 +198,28 @@ const CollectionView: React.FC = () => {
           </button>
         </div>
       </header>
+
+      {/* Subcategory Tabs (if Collection has a 'select' custom field) */}
+      {subcategoryField && subcategoryField.options && subcategoryField.options.length > 0 && (
+        <div className="overflow-x-auto no-scrollbar border-b border-border/50 mb-6 px-4 pb-3 flex gap-2 w-full">
+          <button 
+            className={`whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all ${activeSubcategory === 'All' ? 'bg-accent text-white shadow-md' : 'bg-bg-secondary text-gray-400 hover:text-white'}`}
+            onClick={() => setActiveSubcategory('All')}
+          >
+            All
+          </button>
+          {subcategoryField.options.map(opt => (
+            <button 
+              key={opt}
+              className={`whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all ${activeSubcategory === opt ? 'bg-accent text-white shadow-md' : 'bg-bg-secondary text-gray-400 hover:text-white'}`}
+              onClick={() => setActiveSubcategory(opt)}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      )}
+
 
       {/* Hamburger Menu Overlay */}
       {showMenu && (

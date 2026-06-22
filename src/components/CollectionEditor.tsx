@@ -77,7 +77,7 @@ const CollectionEditor: React.FC<CollectionEditorProps> = ({ collection, onClose
         </header>
 
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className={`grid grid-cols-1 ${!collection ? "md:grid-cols-2" : ""} gap-4`}>
             <div>
               <label className="block text-sm font-bold mb-1 opacity-70">Name</label>
               <input 
@@ -88,36 +88,44 @@ const CollectionEditor: React.FC<CollectionEditorProps> = ({ collection, onClose
                 onChange={e => setName(e.target.value)}
               />
             </div>
-            <div>
-              <label className="block text-sm font-bold mb-1 opacity-70">Category</label>
-              <select 
-                className="w-full rounded-lg border border-border bg-bg-secondary p-3 focus:border-accent outline-none"
-                value={type}
-                onChange={e => {
-                  const newType = e.target.value as CollectionType;
-                  setType(newType);
-                  // Auto-populate default fields if it's a new collection and fields are currently empty
-                  if (!collection && fields.length === 0) {
-                    if (newType === 'Trading Cards') {
-                      setFields([
-                        { id: 'cardNumber', name: 'Card Number', type: 'text' },
-                        { id: 'set', name: 'Set Name', type: 'text' },
-                        { id: 'rarity', name: 'Rarity', type: 'text' }
-                      ]);
-                    } else if (newType === 'Books') {
-                      setFields([
-                        { id: 'author', name: 'Author', type: 'text' },
-                        { id: 'publisher', name: 'Publisher', type: 'text' },
-                        { id: 'year', name: 'Year Published', type: 'number' },
-                        { id: 'isbn', name: 'ISBN', type: 'text' }
-                      ]);
+            {!collection && (
+              <div>
+                <label className="block text-sm font-bold mb-1 opacity-70">Category</label>
+                <select 
+                  className="w-full rounded-lg border border-border bg-bg-secondary p-3 focus:border-accent outline-none"
+                  value={type}
+                  onChange={e => {
+                    const newType = e.target.value as CollectionType;
+                    setType(newType);
+                    // Auto-populate default fields if it's a new collection and fields are currently empty
+                    if (fields.length === 0) {
+                      if (newType === 'Trading Cards') {
+                        setFields([
+                          { id: 'cardNumber', name: 'Card Number', type: 'text' },
+                          { id: 'set', name: 'Set Name', type: 'text' },
+                          { id: 'rarity', name: 'Rarity', type: 'text' }
+                        ]);
+                      } else if (newType === 'Books') {
+                        setFields([
+                          { id: 'author', name: 'Author', type: 'text' },
+                          { id: 'publisher', name: 'Publisher', type: 'text' },
+                          { id: 'year', name: 'Year Published', type: 'number' },
+                          { id: 'isbn', name: 'ISBN', type: 'text' }
+                        ]);
+                      } else if (newType === 'Video Games') {
+                        setFields([
+                          { id: 'platform', name: 'Platform / Console', type: 'select', options: ['Nintendo Switch', 'Wii', 'Wii U', 'PlayStation 5', 'PlayStation 4', 'Xbox Series X', 'PC', 'Other'] },
+                          { id: 'publisher', name: 'Publisher / Studio', type: 'text' },
+                          { id: 'year', name: 'Release Year', type: 'number' }
+                        ]);
+                      }
                     }
-                  }
-                }}
-              >
-                {COLLECTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
+                  }}
+                >
+                  {COLLECTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-6 border-b border-border/50 pb-4">
