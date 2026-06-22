@@ -47,6 +47,15 @@ const handleDelete = async () => {
     if (confirm('Are you sure you want to delete this collection and ALL its items? This cannot be undone.')) {
       await db.items.where('collectionId').equals(collection.id).delete();
       await db.collections.delete(collection.id);
+      
+      // Force sync immediately
+      try {
+        const { syncService } = await import('../db/sync');
+        await syncService.push();
+      } catch (e) {
+        console.error('Failed to sync deletion:', e);
+      }
+      
       onClose();
     }
   };
