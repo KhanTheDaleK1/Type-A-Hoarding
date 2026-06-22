@@ -1107,30 +1107,54 @@ app.post('/api/identify-batch', async (req, res) => {
 
       Return ONLY raw JSON formatting without markdown formatting like \`\`\`json. Output format: { "results": [ { ... } ] }`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: prompt },
-              {
-                inlineData: {
-                  mimeType: 'image/jpeg',
-                  data: base64Data
-                }
+    const requestBody = {
+      contents: [
+        {
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                mimeType: 'image/jpeg',
+                data: base64Data
               }
-            ]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.2
+            }
+          ]
         }
-      })
+      ],
+      generationConfig: {
+        temperature: 0.2
+      }
+    };
+
+    let response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
     });
+
+    if (!response.ok && (response.status === 404 || response.status === 503 || response.status === 429 || response.status === 500)) {
+      const errText = await response.clone().text();
+      console.warn(`[Gemini Batch API Warning] Primary model ${model} failed: ${errText}. Attempting fallbacks...`);
+      
+      const fallbacks = ['gemini-1.5-flash-latest', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-pro-vision'];
+      for (const fallbackModel of fallbacks) {
+        console.log(`[Gemini Batch API] Querying fallback model: ${fallbackModel}...`);
+        try {
+          const fallbackRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent?key=${geminiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+          });
+          if (fallbackRes.ok) {
+            response = fallbackRes;
+            console.log(`[Gemini Batch API] Fallback to ${fallbackModel} succeeded.`);
+            break;
+          }
+        } catch (e) {
+          console.warn(`[Gemini Batch API Warning] Fallback network error for ${fallbackModel}:`, e.message);
+        }
+      }
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
