@@ -145,6 +145,7 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
           ...prev,
           title: itemResult.title || prev.title,
           notes: itemResult.description || prev.notes,
+          mediaType: itemResult.mediaType || prev.mediaType,
           images: [compressedImage, ...(prev.images || [])].slice(0, 4), // Add the captured photo to images!
           customData: {
             ...prev.customData,

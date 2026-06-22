@@ -135,6 +135,7 @@ const BatchScanModal: React.FC<BatchScanModalProps> = ({ collection, onClose }) 
             collectionId: collection.id,
             title: itemResult.title,
             sortTitle: itemResult.title.replace(/^(The|A|An)\s+/i, '') + ', ' + (itemResult.title.match(/^(The|A|An)\s+/i)?.[0].trim() || ''),
+            mediaType: itemResult.mediaType || '',
             images: thumbnail ? [thumbnail] : [],
             dateAdded: Date.now(),
             personalRating: 5,

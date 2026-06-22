@@ -1136,7 +1136,8 @@ app.post('/api/identify-batch', async (req, res) => {
       - title (String): The exact title of the item.
       - creator (String): The author, artist, director, or manufacturer.
       - year (String): The release year, if visible.
-      - description (String): A brief physical description of the specific copy in the photo (e.g. 'Hardcover, slightly worn').
+      - description (String): A detailed description of the item (e.g. plot summary, contents, or physical condition).
+      - mediaType (String): The specific format of the item if identifiable (e.g., 'DVD', 'Blu-ray', '4K UHD', 'VHS', 'CD', 'Vinyl', etc.).
       - customData (Object): ${customPrompt}
 
       Return ONLY raw JSON formatting without markdown formatting like \`\`\`json. Output format: { "results": [ { ... } ] }`;
@@ -1268,6 +1269,7 @@ You MUST return the response STRICTLY as a single JSON object matching this sche
   "creator": "Brand, manufacturer, author, artist, director, or publisher (e.g. The Pokemon Company, Nintendo, J.K. Rowling, Disney)",
   "year": "Release or publication year (4 digits, or 'Unknown')",
   "description": "A brief summary or description of this collectible item (1-3 sentences)",
+  "mediaType": "The specific format of the item if identifiable (e.g., 'DVD', 'Blu-ray', '4K UHD', 'VHS', 'CD', 'Vinyl', etc.)",
   "customData": {
      // Key-value pairs matching the custom fields
   }
