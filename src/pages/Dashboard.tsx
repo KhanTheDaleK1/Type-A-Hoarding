@@ -56,15 +56,37 @@ const Dashboard: React.FC = () => {
       } catch (e) {
         setScanStatus('Invalid Share Code');
       }
-    } else {
-      setScanStatus('Not a Collection QR Code');
-      setTimeout(() => setScanStatus(undefined), 2000);
+    } else if (code.includes('LOC-')) {
+      const match = code.match(/LOC-[\w-]+/);
+      if (match) {
+        setScanStatus(`Location: ${match[0]}`);
+        setSearchQuery(match[0]); // Filters dashboard to items in this location
+        setSelectedCategory(null); // Break out of category view to show results
+        setTimeout(() => {
+          setShowScanner(false);
+          setScanStatus(undefined);
+        }, 1000);
+        return;
+      }
+    } else if (code.includes('/#/item/')) {
+      const match = code.match(/\/item\/([\w-]+)/);
+      if (match) {
+        window.location.hash = `/item/${match[1]}`;
+        setShowScanner(false);
+        return;
+      }
     }
+    
+    setScanStatus('Unrecognized QR Code');
+    setTimeout(() => setScanStatus(undefined), 2000);
   };
 
   const filteredCollections = collections?.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    items?.some(i => i.collectionId === c.id && i.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    items?.some(i => i.collectionId === c.id && (
+      i.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      i.storageLocation?.toLowerCase().includes(searchQuery.toLowerCase())
+    ))
   ).sort((a, b) => {
     // 1. Pinned collections first
     if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;

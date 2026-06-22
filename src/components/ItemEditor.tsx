@@ -13,7 +13,7 @@ interface ItemEditorProps {
 }
 
 const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) => {
-  const [showScanner, setShowScanner] = useState(false);
+  const [scannerMode, setScannerMode] = useState<'item' | 'location' | null>(null);
   const [showCamera, setShowCamera] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isIdentifying, setIsIdentifying] = useState(false);
@@ -186,6 +186,20 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
 
   const handleScan = async (code: string, isBatch?: boolean) => {
     if (scanStatus) return; // Prevent double scans
+
+    if (scannerMode === 'location') {
+      const locMatch = code.match(/LOC-[\w-]+/);
+      if (locMatch) {
+        setScanStatus(`Location: ${locMatch[0]}`);
+        setFormData(prev => ({ ...prev, storageLocation: locMatch[0] }));
+        setTimeout(() => setScannerMode(null), 1000);
+      } else {
+        setScanStatus('Not a Location Code');
+        setTimeout(() => setScanStatus(undefined), 2000);
+      }
+      return;
+    }
+    if (scanStatus) return; // Prevent double scans
     
     // Check for Shared Collection QR Code
     if (code.includes('HOARDING_SHARE_V1')) {
@@ -330,7 +344,7 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
             <div className="flex flex-col sm:flex-row gap-3">
               <button 
                 type="button"
-                onClick={() => setShowScanner(true)}
+                onClick={() => setScannerMode('item')}
                 className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-accent p-4 text-white font-bold hover:bg-accent-hover transition-all shadow-md"
               >
                 <Camera size={20} />
@@ -372,6 +386,25 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
                   value={formData.title}
                   onChange={e => setFormData({ ...formData, title: e.target.value })}
                 />
+              </div>\n\n<div>
+                <label className="block text-xs font-bold uppercase opacity-50 mb-1">Storage Location</label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    className="flex-grow rounded-lg border border-border bg-bg-secondary p-2 outline-none focus:border-accent font-mono text-sm"
+                    value={formData.storageLocation || ''}
+                    onChange={e => setFormData({ ...formData, storageLocation: e.target.value })}
+                    placeholder="e.g. LOC-1001"
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setScannerMode('location')}
+                    className="p-2 bg-accent/20 text-accent rounded-lg hover:bg-accent hover:text-white transition-all flex items-center justify-center border border-accent/20"
+                    title="Scan Location QR"
+                  >
+                    <Camera size={20} />
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-2">
@@ -605,10 +638,10 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
         </div>
       </div>
 
-      {showScanner && (
+      {scannerMode !== null && (
         <Scanner 
           onScan={handleScan} 
-          onClose={() => setShowScanner(false)} 
+          onClose={() => setScannerMode(null)} 
           status={scanStatus}
         />
       )}
