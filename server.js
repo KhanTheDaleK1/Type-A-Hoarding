@@ -1118,8 +1118,8 @@ app.post('/api/identify-batch', async (req, res) => {
             parts: [
               { text: prompt },
               {
-                inline_data: {
-                  mime_type: 'image/jpeg',
+                inlineData: {
+                  mimeType: 'image/jpeg',
                   data: base64Data
                 }
               }
