@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { syncService } from '../db/sync';
-import { Plus, Settings as SettingsIcon, Package, Edit2, Search, Camera, RefreshCw, Pin, Star } from 'lucide-react';
+import { Plus, Settings as SettingsIcon, Package, Edit2, Search, Camera, RefreshCw, Pin, Star, MapPin } from 'lucide-react';
 import CollectionEditor from '../components/CollectionEditor';
 import Scanner from '../components/Scanner';
 import type { Collection } from '../types';
@@ -111,6 +111,9 @@ const Dashboard: React.FC = () => {
           >
             <RefreshCw size={24} className={isSyncing ? "animate-spin" : ""} />
           </button>
+          <Link to="/locations" className="icon-button bg-bg-secondary border border-border" title="Locations Manager">
+            <MapPin size={24} />
+          </Link>
           <Link to="/settings" className="icon-button bg-bg-secondary border border-border" title="Settings">
             <SettingsIcon size={24} />
           </Link>

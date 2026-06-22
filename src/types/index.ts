@@ -7,6 +7,13 @@ export interface FieldDefinition {
   options?: string[]; // For select type
 }
 
+export interface StorageLocation {
+  id: string; // The Tag (e.g. LOC-1001)
+  name: string; // e.g. Master Bedroom
+  description?: string;
+  dateAdded: number;
+}
+
 export interface Collection {
   id: string;
   name: string;

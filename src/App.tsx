@@ -5,6 +5,7 @@ import CollectionView from './pages/CollectionView'
 import ItemDetail from './pages/ItemDetail'
 import Settings from './pages/Settings'
 import LoginPage from './pages/LoginPage'
+import LocationsView from './pages/LocationsView'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { seedDatabase } from './db/db'
 import { useAutoSync } from './hooks/useAutoSync'
@@ -43,6 +44,7 @@ function AppContent() {
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/collection/:id" element={<ProtectedRoute><CollectionView /></ProtectedRoute>} />
       <Route path="/item/:id" element={<ProtectedRoute><ItemDetail /></ProtectedRoute>} />
+      <Route path="/locations" element={<ProtectedRoute><LocationsView /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
     </Routes>
   );
