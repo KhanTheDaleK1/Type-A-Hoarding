@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Collection, Item } from '../types';
+import type { Collection, Item } from '../types';
 import { db } from '../db/db';
 import { X, Camera, Plus, Sparkles, Loader2 } from 'lucide-react';
 import CameraCapture from './CameraCapture';
