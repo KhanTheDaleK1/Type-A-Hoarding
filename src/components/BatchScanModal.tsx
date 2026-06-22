@@ -177,7 +177,7 @@ const BatchScanModal: React.FC<BatchScanModalProps> = ({ collection, onClose }) 
         {!isScanning && addedItems.length === 0 ? (
           <div className="space-y-4">
             <p className="text-sm opacity-80 mb-4">
-              Take a picture of a shelf or box. The AI will detect every item, fetch metadata, and add them individually to your collection.
+              Take a picture of a Hoarding Area. The AI will detect every item, fetch metadata, and add them individually to your collection.
             </p>
             <div className="flex flex-col gap-3">
               <button 
