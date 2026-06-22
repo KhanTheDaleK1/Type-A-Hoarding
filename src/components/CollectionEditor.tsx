@@ -42,6 +42,15 @@ const CollectionEditor: React.FC<CollectionEditorProps> = ({ collection, onClose
     setFields(fields.filter(f => f.id !== id));
   };
 
+const handleDelete = async () => {
+    if (!collection) return;
+    if (confirm('Are you sure you want to delete this collection and ALL its items? This cannot be undone.')) {
+      await db.items.where('collectionId').equals(collection.id).delete();
+      await db.collections.delete(collection.id);
+      onClose();
+    }
+  };
+
   const handleSave = async () => {
     if (!name) return alert('Collection name is required');
 
@@ -206,13 +215,24 @@ const CollectionEditor: React.FC<CollectionEditorProps> = ({ collection, onClose
             </div>
           </div>
 
-          <button 
-            onClick={handleSave}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent p-4 text-white font-bold hover:bg-accent-hover transition-all shadow-lg shadow-accent/20"
-          >
-            <Save size={20} />
-            {collection ? 'Update' : 'Create'} Collection
-          </button>
+          <div className="flex gap-4">
+            {collection && (
+              <button 
+                onClick={handleDelete}
+                className="flex items-center justify-center gap-2 rounded-xl bg-danger/10 p-4 text-danger font-bold hover:bg-danger hover:text-white transition-all w-16"
+                title="Delete Collection"
+              >
+                <Trash2 size={20} />
+              </button>
+            )}
+            <button 
+              onClick={handleSave}
+              className="flex flex-grow items-center justify-center gap-2 rounded-xl bg-accent p-4 text-white font-bold hover:bg-accent-hover transition-all shadow-lg shadow-accent/20"
+            >
+              <Save size={20} />
+              {collection ? 'Update' : 'Create'} Collection
+            </button>
+          </div>
         </div>
       </div>
     </div>
