@@ -1183,6 +1183,9 @@ app.post('/api/identify-batch', async (req, res) => {
             response = fallbackRes;
             console.log(`[Gemini Batch API] Fallback to ${fallbackModel} succeeded.`);
             break;
+          } else {
+            const fbErrText = await fallbackRes.text();
+            console.warn(`[Gemini Batch API Warning] Fallback to ${fallbackModel} failed: ${fbErrText}`);
           }
         } catch (e) {
           console.warn(`[Gemini Batch API Warning] Fallback network error for ${fallbackModel}:`, e.message);
