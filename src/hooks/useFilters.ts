@@ -6,6 +6,7 @@ export interface FilterOptions {
   loanedOnly: boolean;
   location: string;
   mediaType: string;
+  readStatus: 'all' | 'unread' | 'read';
   sortBy: 'title' | 'dateAdded' | 'rating' | 'value';
   sortOrder: 'asc' | 'desc';
 }
@@ -16,6 +17,7 @@ export const initialFilters: FilterOptions = {
   loanedOnly: false,
   location: 'all',
   mediaType: 'all',
+  readStatus: 'all',
   sortBy: 'title',
   sortOrder: 'asc',
 };
@@ -27,7 +29,14 @@ export const filterItems = (items: Item[], filters: FilterOptions): Item[] => {
       const matchesRating = filters.rating === null || item.personalRating >= filters.rating;
       const matchesMediaType = filters.mediaType === 'all' || item.mediaType === filters.mediaType;
       
-      return matchesSearch && matchesRating && matchesMediaType;
+      let matchesReadStatus = true;
+      if (filters.readStatus === 'unread') {
+        matchesReadStatus = !item.watched;
+      } else if (filters.readStatus === 'read') {
+        matchesReadStatus = !!item.watched;
+      }
+      
+      return matchesSearch && matchesRating && matchesMediaType && matchesReadStatus;
     })
     .sort((a, b) => {
       let comparison = 0;

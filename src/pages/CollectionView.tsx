@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { 
   ArrowLeft, Plus, Search, Filter, X, 
-  LayoutList, Grid, List, Shuffle, Share2, Menu, Wand2, CheckCircle2
+  LayoutList, Grid, List, Shuffle, Share2, Menu, Wand2, CheckCircle2, Lightbulb, Sparkles
 } from 'lucide-react';
 import { initialFilters, filterItems } from '../hooks/useFilters';
 import type { FilterOptions } from '../hooks/useFilters';
@@ -12,7 +12,9 @@ import type { Item } from '../types';
 import ItemEditor from '../components/ItemEditor';
 import MovieWheel from '../components/MovieWheel';
 import ShareModal from '../components/ShareModal';
+import BatchScanModal from '../components/BatchScanModal';
 import { fetchMetadataInBackground } from '../db/import';
+import { useSeriesDetector } from '../hooks/useSeriesDetector';
 
 type ViewMode = 'compact' | 'grid' | 'detailed';
 
@@ -20,6 +22,7 @@ const CollectionView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [showFilters, setShowFilters] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showBatchScan, setShowBatchScan] = useState(false);
   const [showWheel, setShowWheel] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -31,6 +34,30 @@ const CollectionView: React.FC = () => {
 
   const collection = useLiveQuery(() => db.collections.get(id || ''));
   const rawItems = useLiveQuery(() => db.items.where('collectionId').equals(id || '').toArray(), [id]);
+  
+  const seriesSuggestions = useSeriesDetector(rawItems || [], collection);
+
+  const handleApplySeries = async (suggestion: { seriesName: string; items: Item[] }) => {
+    if (!collection) return;
+    
+    // Ensure collection has 'series' field
+    const hasSeriesField = collection.customFields?.some(f => f.id === 'series');
+    if (!hasSeriesField) {
+      await db.collections.update(collection.id, {
+        customFields: [...(collection.customFields || []), { id: 'series', name: 'Series Name', type: 'text' }]
+      });
+    }
+
+    // Update items
+    const itemsToUpdate = suggestion.items.map(i => ({
+      ...i,
+      customData: {
+        ...i.customData,
+        series: suggestion.seriesName
+      }
+    }));
+    await db.items.bulkPut(itemsToUpdate);
+  };
 
   const handleRepair = async () => {
     if (!rawItems || rawItems.length === 0) return;
@@ -140,7 +167,14 @@ const CollectionView: React.FC = () => {
           </div>
         </div>
         
-        <div className="header-actions">
+        <div className="header-actions flex gap-2">
+          <button 
+            className="icon-button bg-accent/10 text-accent border border-accent/20 shadow-xl"
+            onClick={() => setShowBatchScan(true)}
+            title="Batch AI Scan"
+          >
+            <Sparkles size={24} />
+          </button>
           <button 
             className="icon-button accent shadow-xl"
             onClick={() => setShowAddModal(true)}
@@ -244,6 +278,16 @@ const CollectionView: React.FC = () => {
 
             <select 
               className="p-2 bg-bg border border-border rounded-lg outline-none"
+              value={filters.readStatus}
+              onChange={e => setFilters({ ...filters, readStatus: e.target.value as any })}
+            >
+              <option value="all">All Statuses</option>
+              <option value="unread">TBR / Unwatched</option>
+              <option value="read">Already Read / Watched</option>
+            </select>
+
+            <select 
+              className="p-2 bg-bg border border-border rounded-lg outline-none"
               value={filters.sortBy}
               onChange={e => setFilters({ ...filters, sortBy: e.target.value as any })}
             >
@@ -253,6 +297,33 @@ const CollectionView: React.FC = () => {
               <option value="value">Sort by Value</option>
             </select>
           </div>
+        </div>
+      )}
+
+      {/* Series Insights Banner */}
+      {seriesSuggestions.length > 0 && (
+        <div className="mx-4 mb-6 animate-in fade-in slide-in-from-top-4">
+          {seriesSuggestions.map((sug, i) => (
+            <div key={i} className="bg-accent/10 border border-accent/20 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 mb-2 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="bg-accent text-white p-2 rounded-full shadow-md">
+                  <Lightbulb size={20} />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-accent">Smart Detection</h4>
+                  <p className="text-xs opacity-80">
+                    We noticed {sug.items.length} books that look like they belong to the <strong>"{sug.seriesName}"</strong> series.
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => handleApplySeries(sug)}
+                className="whitespace-nowrap px-4 py-2 bg-accent text-white text-xs font-bold rounded-lg shadow-md hover:bg-accent-hover transition-all active:scale-95"
+              >
+                Group as Series
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
@@ -322,8 +393,13 @@ const CollectionView: React.FC = () => {
                 {viewMode === 'detailed' && item.notes && (
                   <p className="mt-2 text-sm italic line-clamp-2">{item.notes}</p>
                 )}
-                {viewMode === 'detailed' && (item.mediaType || item.watched) && (
-                  <div className="flex gap-2 mt-2">
+                {viewMode === 'detailed' && (item.mediaType || item.watched || item.customData?.series) && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {item.customData?.series && (
+                      <span className="inline-block text-[10px] font-bold uppercase tracking-wider bg-indigo-500 text-white px-2 py-0.5 rounded shadow-sm">
+                        Series: {item.customData.series}
+                      </span>
+                    )}
                     {item.mediaType && (
                       <span className="inline-block text-[10px] font-bold uppercase tracking-wider bg-accent text-white px-2 py-0.5 rounded shadow-sm">
                         {item.mediaType}
@@ -377,6 +453,13 @@ const CollectionView: React.FC = () => {
         <ItemEditor 
           collection={collection} 
           onClose={() => setShowAddModal(false)} 
+        />
+      )}
+
+      {showBatchScan && (
+        <BatchScanModal 
+          collection={collection}
+          onClose={() => setShowBatchScan(false)}
         />
       )}
 

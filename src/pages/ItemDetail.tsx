@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
-import { ArrowLeft, Edit2, Trash2, Calendar, Tag, ShieldCheck, PlayCircle } from 'lucide-react';
+import { ArrowLeft, Edit2, Trash2, Calendar, Tag, ShieldCheck, PlayCircle, Star } from 'lucide-react';
 import ItemEditor from '../components/ItemEditor';
 
 const ItemDetail: React.FC = () => {
@@ -99,7 +99,7 @@ const ItemDetail: React.FC = () => {
                   <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
                     <div className="flex items-center gap-2 text-gray-500 mb-1">
                       <Calendar size={14} />
-                      <span className="text-[10px] font-black uppercase tracking-wider">Read</span>
+                      <span className="text-[10px] font-black uppercase tracking-wider">Date Finished</span>
                     </div>
                     <div className="text-sm font-bold">{item.customData.dateRead || 'Not Read'}</div>
                   </div>
@@ -134,9 +134,25 @@ const ItemDetail: React.FC = () => {
 
           {item.notes && (
             <section className="space-y-4">
-              <h2 className="text-sm font-black uppercase tracking-[0.2em] text-accent opacity-80 border-b border-border pb-2">Notes & Summary</h2>
+              <h2 className="text-sm font-black uppercase tracking-[0.2em] text-accent opacity-80 border-b border-border pb-2">Synopsis</h2>
               <p className="text-sm leading-relaxed opacity-80 bg-bg-secondary p-4 rounded-2xl border border-border whitespace-pre-wrap">
                 {item.notes}
+              </p>
+            </section>
+          )}
+
+          {item.customData.reviewText && (
+            <section className="space-y-4">
+              <h2 className="text-sm font-black uppercase tracking-[0.2em] text-accent opacity-80 border-b border-border pb-2 flex items-center justify-between">
+                <span>Review</span>
+                <span className="flex items-center gap-1 text-accent">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} size={16} className={i < (item.personalRating || 5) ? 'fill-current' : 'opacity-20'} />
+                  ))}
+                </span>
+              </h2>
+              <p className="text-sm leading-relaxed opacity-80 bg-bg-secondary p-4 rounded-2xl border border-border whitespace-pre-wrap">
+                {item.customData.reviewText}
               </p>
             </section>
           )}

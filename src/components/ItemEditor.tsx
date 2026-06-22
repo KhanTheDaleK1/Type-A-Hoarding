@@ -431,6 +431,16 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
                     onChange={e => setFormData({ ...formData, estimatedValue: parseFloat(e.target.value) })}
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase opacity-50 mb-1">Personal Rating (Stars)</label>
+                  <input 
+                    type="number" 
+                    min="1" max="5"
+                    className="w-full rounded-lg border border-border bg-bg-secondary p-2 text-sm outline-none"
+                    value={formData.personalRating || 5}
+                    onChange={e => setFormData({ ...formData, personalRating: parseInt(e.target.value) })}
+                  />
+                </div>
               </div>
 
               <div className="p-4 bg-bg-secondary rounded-2xl border border-border space-y-3">
@@ -519,11 +529,20 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
               </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase opacity-50 mb-1">General Notes</label>
+            <label className="block text-xs font-bold uppercase opacity-50 mb-1">Synopsis</label>
             <textarea 
               className="w-full rounded-lg border border-border bg-bg-secondary p-2 text-sm h-32 outline-none"
               value={formData.notes}
               onChange={e => setFormData({ ...formData, notes: e.target.value })}
+            ></textarea>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase opacity-50 mb-1">Review</label>
+            <textarea 
+              className="w-full rounded-lg border border-border bg-bg-secondary p-2 text-sm h-24 outline-none"
+              value={formData.customData?.reviewText || ''}
+              onChange={e => updateCustomData('reviewText', e.target.value)}
             ></textarea>
           </div>
 
