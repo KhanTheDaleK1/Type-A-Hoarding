@@ -1089,7 +1089,7 @@ app.post('/api/identify-batch', async (req, res) => {
   }
 
   try {
-    const base64Data = image.replace(/^data:image/[a-z]+;base64,/, '');
+    const base64Data = image.replace(/^data:image\/[a-z]+;base64,/, '');
 
     let customPrompt = '';
     if (customFields && customFields.length > 0) {
