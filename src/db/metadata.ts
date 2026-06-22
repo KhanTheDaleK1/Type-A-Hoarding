@@ -93,6 +93,8 @@ export const fetchMetadataByTitle = async (title: string, type: string, isVhs?: 
       backendType = 'music';
     } else if (type === 'Video Games') {
       backendType = 'game';
+    } else if (type === 'Trading Cards') {
+      backendType = 'card';
     }
 
     const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(title)}&type=${backendType}${isVhs ? '&isVhs=true' : ''}`), {

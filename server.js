@@ -1027,6 +1027,40 @@ app.get('/api/search', async (req, res) => {
     }
 
     // 4. Search video games (DuckDuckGo Instant Answer API)
+    
+    // 5. Search Trading Cards (Pokemon TCG API as an example, but works generically if name matches)
+    if (type === 'all' || type === 'card') {
+      try {
+        console.log(`[Search API Card] Querying Pokemon TCG API for "${query}"`);
+        const cleanQuery = query.replace(/[^a-zA-Z0-9 ]/g, '').trim();
+        const tcgRes = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanQuery)}"&pageSize=1`);
+        if (tcgRes.ok) {
+          const tcgData = await tcgRes.json();
+          if (tcgData.data && tcgData.data.length > 0) {
+            const card = tcgData.data[0];
+            results.push({
+              title: card.name,
+              creator: card.set?.series ? `Pokemon (${card.set.series})` : 'Pokemon TCG',
+              type: 'card',
+              publishedDate: card.set?.releaseDate ? card.set.releaseDate.split('/')[0] : 'N/A',
+              barcode: card.id,
+              thumbnail: card.images?.large || card.images?.small || '',
+              source: 'Pokemon TCG API',
+              description: card.flavorText || card.attacks?.map(a => a.name + ': ' + a.text).join(' | ') || '',
+              extra: {
+                category: 'Trading Card',
+                cardNumber: card.number,
+                set: card.set?.name,
+                rarity: card.rarity
+              }
+            });
+          }
+        }
+      } catch (err) {
+        console.error('[Search API Card Error]', err.message);
+      }
+    }
+
     if (type === 'all' || type === 'game') {
       try {
         console.log(`[Search API Game] Querying DuckDuckGo Instant Answer for "${query}"`);

@@ -112,16 +112,22 @@ const BatchScanModal: React.FC<BatchScanModalProps> = ({ collection, onClose }) 
           let fetchedAuthor = itemResult.creator || '';
           let fetchedYear = itemResult.year || '';
           
-          // Fetch metadata using title
-          try {
-             const meta = await fetchMetadataByTitle(itemResult.title, collection.type);
-             if (meta) {
-               thumbnail = meta.thumbnail || '';
-               if (!fetchedAuthor) fetchedAuthor = meta.author || '';
-               if (!fetchedYear) fetchedYear = meta.year || '';
-             }
-          } catch (e) {
-             console.warn('Failed to fetch metadata for', itemResult.title);
+          // Fetch metadata using title only for supported database types
+          const supportedTypes = ['Movies', 'Books', 'Music', 'Video Games', 'TV Shows', 'Trading Cards'];
+          if (supportedTypes.includes(collection.type)) {
+            try {
+               const meta = await fetchMetadataByTitle(itemResult.title, collection.type);
+               if (meta) {
+                 thumbnail = meta.thumbnail || '';
+                 if (!fetchedAuthor) fetchedAuthor = meta.author || '';
+                 if (!fetchedYear) fetchedYear = meta.year || '';
+                 if (meta.description && !itemResult.description) {
+                   itemResult.description = meta.description;
+                 }
+               }
+            } catch (e) {
+               console.warn('Failed to fetch metadata for', itemResult.title);
+            }
           }
 
           const newItem: Item = {
