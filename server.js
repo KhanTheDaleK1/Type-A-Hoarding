@@ -1074,7 +1074,91 @@ app.get('/api/search', async (req, res) => {
 });
 
 // Route for AI visual recognition of collectibles using Gemini 3.5 Flash (or dynamically requested model version)
-app.post('/api/identify', async (req, res) => {
+
+app.post('/api/identify-batch', async (req, res) => {
+  const geminiKey = req.headers['x-gemini-api-key'];
+  const model = req.headers['x-gemini-model'] || 'gemini-1.5-flash';
+  const { image, collectionType, collectionName, customFields } = req.body;
+
+  if (!geminiKey) {
+    return res.status(401).json({ success: false, error: 'Gemini API key is required' });
+  }
+
+  if (!image) {
+    return res.status(400).json({ success: false, error: 'Image data is required' });
+  }
+
+  try {
+    const base64Data = image.replace(/^data:image/[a-z]+;base64,/, '');
+
+    let customPrompt = '';
+    if (customFields && customFields.length > 0) {
+      const fieldNames = customFields.map(f => f.name).join(', ');
+      customPrompt = ` Try to also extract or infer the following custom fields if possible: ${fieldNames}.`;
+    }
+
+    const prompt = `Identify all ${collectionName || collectionType} visible in this image. Extract them into a JSON array of objects.
+      Each object must have:
+      - title (String): The exact title of the item.
+      - creator (String): The author, artist, director, or manufacturer.
+      - year (String): The release year, if visible.
+      - description (String): A brief physical description of the specific copy in the photo (e.g. 'Hardcover, slightly worn').
+      - customData (Object): ${customPrompt}
+
+      Return ONLY raw JSON formatting without markdown formatting like ```json. Output format: { "results": [ { ... } ] }`;
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: prompt },
+              {
+                inline_data: {
+                  mime_type: 'image/jpeg',
+                  data: base64Data
+                }
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.2
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[Batch Identify API Error]', errorText);
+      return res.status(response.status).json({ success: false, error: 'Failed to communicate with Gemini.' });
+    }
+
+    const data = await response.json();
+    let textResult = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    
+    // Clean up markdown wrapper if model ignored instructions
+    textResult = textResult.replace(/^\s*\x60\x60\x60json\n/i, '').replace(/\n\x60\x60\x60\s*$/, '').trim();
+
+    let parsedResult;
+    try {
+      parsedResult = JSON.parse(textResult);
+    } catch (parseErr) {
+      console.error('[Batch Identify JSON Parse Error]', textResult);
+      return res.status(500).json({ success: false, error: 'Gemini returned invalid JSON.' });
+    }
+
+    return res.json({ success: true, results: parsedResult.results || [] });
+  } catch (err) {
+    console.error('[Batch Identify API Error]', err);
+    return res.status(500).json({ success: false, error: 'Internal server error during batch identification.' });
+  }
+});
+\napp.post('/api/identify', async (req, res) => {
   const geminiKey = req.headers['x-gemini-api-key'] || req.body.gemini_key;
   const geminiModel = req.headers['x-gemini-model'] || req.body.gemini_model || 'gemini-3.5-flash';
   const image = req.body.image;
