@@ -75,7 +75,7 @@ const BatchScanModal: React.FC<BatchScanModalProps> = ({ collection, onClose }) 
         return;
       }
 
-      let resolvedModel = 'gemini-3.5-flash';
+      let resolvedModel = 'gemini-1.5-flash';
 
       const apiUrl = localStorage.getItem('hoarding_api_url') || 'https://hoardbackend.beechem.site';
 
