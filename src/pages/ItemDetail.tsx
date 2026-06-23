@@ -20,7 +20,24 @@ const ItemDetail: React.FC = () => {
     }
   };
 
-  if (!item) return <div className="p-8 text-center animate-pulse">Loading item...</div>;
+  const [isLoaded, setIsLoaded] = useState(false);
+  
+  React.useEffect(() => {
+    // If Dexie returns undefined, give it 500ms to load. If still undefined, it's not found.
+    const timer = setTimeout(() => setIsLoaded(true), 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!item) {
+    if (!isLoaded) return <div className="p-8 text-center animate-pulse mt-20">Loading item...</div>;
+    return (
+      <div className="p-8 text-center mt-20">
+        <h2 className="text-2xl font-black mb-4">Item Not Found</h2>
+        <p className="opacity-50 mb-8">This item does not exist in your local database. If you just scanned this from your native camera, you are likely in a Safari browser window that hasn't synced with your main app yet!</p>
+        <button onClick={() => navigate('/')} className="px-6 py-3 bg-accent text-white font-bold rounded-xl">Go to Dashboard</button>
+      </div>
+    );
+  }
 
   return (
     <div className="item-detail max-w-4xl mx-auto">
