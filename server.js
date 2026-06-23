@@ -352,12 +352,16 @@ app.get('/api/lookup/:barcode', async (req, res) => {
           let thumbnail = '';
           
           try {
-            const caRes = await fetch(`https://coverartarchive.org/release/${mbid}`);
+            const caRes = await fetch(`https://coverartarchive.org/release/${mbid}`, {
+              headers: { 'User-Agent': 'AuraScan/1.0.0 (contact@example.com)' }
+            });
             if (caRes.ok) {
               const caData = await caRes.json();
               thumbnail = caData.images?.[0]?.image || '';
             } else if (rel['release-group']?.id) {
-              const caRgRes = await fetch(`https://coverartarchive.org/release-group/${rel['release-group'].id}`);
+              const caRgRes = await fetch(`https://coverartarchive.org/release-group/${rel['release-group'].id}`, {
+                headers: { 'User-Agent': 'AuraScan/1.0.0 (contact@example.com)' }
+              });
               if (caRgRes.ok) {
                 const caRgData = await caRgRes.json();
                 thumbnail = caRgData.images?.[0]?.image || '';
@@ -532,12 +536,16 @@ app.get('/api/lookup/:barcode', async (req, res) => {
             let thumbnail = '';
 
             try {
-              const caRes = await fetch(`https://coverartarchive.org/release/${mbid}`);
+              const caRes = await fetch(`https://coverartarchive.org/release/${mbid}`, {
+                headers: { 'User-Agent': 'AuraScan/1.0.0 (contact@example.com)' }
+              });
               if (caRes.ok) {
                 const caData = await caRes.json();
                 thumbnail = caData.images?.[0]?.image || '';
               } else if (rel['release-group']?.id) {
-                const caRgRes = await fetch(`https://coverartarchive.org/release-group/${rel['release-group'].id}`);
+                const caRgRes = await fetch(`https://coverartarchive.org/release-group/${rel['release-group'].id}`, {
+                  headers: { 'User-Agent': 'AuraScan/1.0.0 (contact@example.com)' }
+                });
                 if (caRgRes.ok) {
                   const caRgData = await caRgRes.json();
                   thumbnail = caRgData.images?.[0]?.image || '';
