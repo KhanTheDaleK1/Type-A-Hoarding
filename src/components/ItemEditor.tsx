@@ -274,7 +274,7 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
         }));
         setTimeout(() => {
           setScanStatus(undefined);
-          setShowScanner(false);
+          setScannerMode(null);
         }, 1500);
       }
     } else {
