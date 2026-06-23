@@ -1242,10 +1242,7 @@ app.post('/api/identify', async (req, res) => {
 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`;
     
-    const fieldsPrompt = customFields.length > 0
-      ? `The collection defines these custom fields. You MUST map the values you extract to these exact keys in the "customData" object (only include keys that exist in this list):
-${JSON.stringify(customFields.map(f => ({ id: f.id, name: f.name, type: f.type })))}`
-      : `Provide any relevant metadata in the "customData" object matching typical fields like:
+    let fieldsPrompt = `Provide any relevant metadata in the "customData" object matching typical fields like:
 {
   "author": "string (only if book)",
   "publisher": "string (only if book/music/game/comic/magazine/wine)",
@@ -1264,6 +1261,11 @@ ${JSON.stringify(customFields.map(f => ({ id: f.id, name: f.name, type: f.type }
   "artist": "string (only if music/art)",
   "label": "string (only if music)"
 }`;
+
+    if (customFields.length > 0) {
+      fieldsPrompt += `\n\nADDITIONALLY, the collection defines these custom fields. You MUST map any relevant values to these exact keys if possible:
+${JSON.stringify(customFields.map(f => ({ id: f.id, name: f.name, type: f.type })))}`;
+    }
 
     const prompt = `Analyze this photo of a collectible item (such as a Pokemon card, Magic card, coin, action figure, book, vinyl record, cassette, VHS tape, board game, toy car, Lego set, etc.).
 Identify the item and extract the following details. 

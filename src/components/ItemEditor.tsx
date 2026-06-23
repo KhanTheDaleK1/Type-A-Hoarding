@@ -560,6 +560,23 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
                 {collection.customFields.length === 0 && (
                   <p className="text-xs opacity-40 italic">No custom fields defined for this collection.</p>
                 )}
+
+                {Object.keys(formData.customData || {}).filter(key => 
+                  !collection.customFields.find(cf => cf.id === key) && 
+                  !['reviewText', 'dateRead', 'dateWatched', 'genre', 'rating'].includes(key)
+                ).map(key => (
+                  <div key={key}>
+                    <label className="block text-xs font-bold opacity-70 mb-1 capitalize text-accent flex items-center gap-1">
+                      <Sparkles size={12} /> {key.replace(/([A-Z])/g, ' $1').trim()} (AI Extracted)
+                    </label>
+                    <input 
+                      type="text" 
+                      className="w-full rounded-lg border border-accent/30 bg-bg-secondary p-2 text-sm outline-none focus:border-accent"
+                      value={formData.customData?.[key] || ''}
+                      onChange={e => updateCustomData(key, e.target.value)}
+                    />
+                  </div>
+                ))}
               </div>
 
           <div>
