@@ -4,7 +4,7 @@ import { db } from '../db/db';
 import { X, Camera, Save, Plus, Sparkles } from 'lucide-react';
 import Scanner from './Scanner';
 import CameraCapture from './CameraCapture';
-import { fetchMetadataByBarcode } from '../db/metadata';
+import { fetchMetadataByBarcode, fetchMetadataByTitle } from '../db/metadata';
 
 interface ItemEditorProps {
   collection: Collection;
@@ -283,6 +283,54 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
     }
   };
 
+  const [isFetchingMetadata, setIsFetchingMetadata] = useState(false);
+
+  const handleFetchMetadata = async () => {
+    if (!formData.title) {
+      alert('Please enter a title to search for metadata.');
+      return;
+    }
+    setIsFetchingMetadata(true);
+    setScanStatus('Searching Metadata...');
+    try {
+      const isVhsItem = collection.name.toLowerCase().includes('vhs') || collection.type.toLowerCase().includes('vhs') || (formData.mediaType?.toLowerCase() === 'vhs');
+      // If we have an author/creator in custom data, append it for a better search
+      const creatorStr = formData.customData?.author || formData.customData?.artist || formData.customData?.creator || '';
+      const searchQuery = creatorStr ? `${formData.title} ${creatorStr}` : formData.title;
+      
+      const metadata = await fetchMetadataByTitle(searchQuery, collection.type, isVhsItem);
+      
+      if (metadata) {
+        setScanStatus(`Found: ${metadata.title}`);
+        setFormData(prev => ({
+          ...prev,
+          title: metadata.title,
+          mediaType: metadata.mediaType || prev.mediaType,
+          images: metadata.thumbnail ? [metadata.thumbnail] : prev.images,
+          notes: metadata.description || prev.notes,
+          customData: {
+            ...prev.customData,
+            author: metadata.author || prev.customData?.author,
+            publisher: metadata.publisher || prev.customData?.publisher,
+            year: metadata.year || prev.customData?.year,
+            genre: metadata.genre || prev.customData?.genre,
+            tracks: metadata.tracks || prev.customData?.tracks
+          }
+        }));
+        setTimeout(() => setScanStatus(undefined), 2000);
+      } else {
+        setScanStatus('Metadata not found');
+        setTimeout(() => setScanStatus(undefined), 3000);
+      }
+    } catch (e) {
+      console.error('Manual fetch failed:', e);
+      setScanStatus('Search Error');
+      setTimeout(() => setScanStatus(undefined), 3000);
+    } finally {
+      setIsFetchingMetadata(false);
+    }
+  };
+
   const MEDIA_TYPES_BY_COLLECTION: Record<string, string[]> = {
     'Movies': ['DVD', 'VHS', 'Blu-ray', '4K', 'Digital'],
     'Books': ['Hardcover', 'Paperback', 'Kindle', 'Audiobook', 'Mass Market'],
@@ -381,12 +429,22 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold uppercase opacity-50 mb-1">Title</label>
-                <input 
-                  type="text" 
-                  className="w-full rounded-lg border border-border bg-bg-secondary p-2 outline-none focus:border-accent"
-                  value={formData.title}
-                  onChange={e => setFormData({ ...formData, title: e.target.value })}
-                />
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    className="flex-grow w-full rounded-lg border border-border bg-bg-secondary p-2 outline-none focus:border-accent"
+                    value={formData.title}
+                    onChange={e => setFormData({ ...formData, title: e.target.value })}
+                  />
+                  <button 
+                    type="button"
+                    onClick={handleFetchMetadata}
+                    disabled={isFetchingMetadata}
+                    className="whitespace-nowrap px-3 bg-accent text-white rounded-lg hover:bg-accent-hover transition-all text-xs font-bold disabled:opacity-50"
+                  >
+                    {isFetchingMetadata ? 'Fetching...' : 'Fetch Meta'}
+                  </button>
+                </div>
               </div>\n\n<div>
                 <label className="block text-xs font-bold uppercase opacity-50 mb-1">Storage Location</label>
                 <div className="flex gap-2">
@@ -569,12 +627,20 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
                     <label className="block text-xs font-bold opacity-70 mb-1 capitalize text-accent flex items-center gap-1">
                       <Sparkles size={12} /> {key.replace(/([A-Z])/g, ' $1').trim()} (AI Extracted)
                     </label>
-                    <input 
-                      type="text" 
-                      className="w-full rounded-lg border border-accent/30 bg-bg-secondary p-2 text-sm outline-none focus:border-accent"
-                      value={formData.customData?.[key] || ''}
-                      onChange={e => updateCustomData(key, e.target.value)}
-                    />
+                    {Array.isArray(formData.customData?.[key]) ? (
+                      <textarea 
+                        className="w-full rounded-lg border border-accent/30 bg-bg-secondary p-2 text-sm outline-none focus:border-accent h-32"
+                        value={formData.customData[key].join('\n')}
+                        onChange={e => updateCustomData(key, e.target.value.split('\n'))}
+                      />
+                    ) : (
+                      <input 
+                        type="text" 
+                        className="w-full rounded-lg border border-accent/30 bg-bg-secondary p-2 text-sm outline-none focus:border-accent"
+                        value={formData.customData?.[key] || ''}
+                        onChange={e => updateCustomData(key, e.target.value)}
+                      />
+                    )}
                   </div>
                 ))}
               </div>

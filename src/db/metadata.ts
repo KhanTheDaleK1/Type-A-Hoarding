@@ -7,6 +7,7 @@ export interface BarcodeResult {
   description?: string;
   mediaType?: string;
   genre?: string;
+  tracks?: string[];
   source: string;
 }
 
@@ -56,6 +57,7 @@ export const fetchMetadataByBarcode = async (barcode: string, isVhs?: boolean): 
           description: data.description !== 'No description available.' ? data.description : undefined,
           mediaType: data.type ? (data.type.charAt(0).toUpperCase() + data.type.slice(1)) : undefined, // movie -> Movie, book -> Book, etc.
           genre: data.extra?.genres?.join(', ') || data.extra?.category || undefined,
+          tracks: data.extra?.tracks || undefined,
           source: data.source
         };
       }
@@ -105,6 +107,14 @@ export const fetchMetadataByTitle = async (title: string, type: string, isVhs?: 
     const data = await response.json();
     if (data && data.success && data.results && data.results.length > 0) {
       const first = data.results[0];
+      
+      if (first.barcode) {
+        const fullData = await fetchMetadataByBarcode(first.barcode, isVhs);
+        if (fullData) {
+          return fullData;
+        }
+      }
+
       return {
         title: first.title,
         author: first.creator !== 'N/A' && first.creator !== 'Unknown Artist' && first.creator !== 'Unknown Director' && first.creator !== 'Unknown Author' ? first.creator : undefined,

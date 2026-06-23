@@ -343,7 +343,7 @@ app.get('/api/lookup/:barcode', async (req, res) => {
       try {
         const mbid = barcode.replace('mb_', '');
         console.log(`[MusicBrainz Direct] Querying Release ID: ${mbid}`);
-        const mbRes = await fetch(`https://musicbrainz.org/ws/2/release/${mbid}?fmt=json&inc=artist-credits+labels`, {
+        const mbRes = await fetch(`https://musicbrainz.org/ws/2/release/${mbid}?fmt=json&inc=artist-credits+labels+recordings`, {
           headers: { 'User-Agent': 'AuraScan/1.0.0 (contact@example.com)' }
         });
         
@@ -376,7 +376,8 @@ app.get('/api/lookup/:barcode', async (req, res) => {
             extra: {
               mbid,
               status: rel.status || 'Official',
-              trackCount: rel.media?.[0]?.['track-count'] || null
+              trackCount: rel.media?.[0]?.['track-count'] || null,
+              tracks: rel.media?.[0]?.tracks?.map(t => t.title) || []
             }
           };
 
@@ -470,40 +471,50 @@ app.get('/api/lookup/:barcode', async (req, res) => {
       if (mbRes.ok) {
         const mbData = await mbRes.json();
         if (mbData.releases && mbData.releases.length > 0) {
-          const rel = mbData.releases[0];
-          const mbid = rel.id;
-          let thumbnail = '';
+          const mbid = mbData.releases[0].id;
+          
+          // Now fetch release details directly to get tracks
+          console.log(`[MusicBrainz Cascade] Querying Release ID: ${mbid} for tracks`);
+          const relRes = await fetch(`https://musicbrainz.org/ws/2/release/${mbid}?fmt=json&inc=artist-credits+labels+recordings`, {
+            headers: { 'User-Agent': 'AuraScan/1.0.0 (contact@example.com)' }
+          });
+          
+          if (relRes.ok) {
+            const rel = await relRes.json();
+            let thumbnail = '';
 
-          try {
-            const caRes = await fetch(`https://coverartarchive.org/release/${mbid}`);
-            if (caRes.ok) {
-              const caData = await caRes.json();
-              thumbnail = caData.images?.[0]?.image || '';
+            try {
+              const caRes = await fetch(`https://coverartarchive.org/release/${mbid}`);
+              if (caRes.ok) {
+                const caData = await caRes.json();
+                thumbnail = caData.images?.[0]?.image || '';
+              }
+            } catch (caErr) {
+              console.warn('[Cover Art Cascade Error]', caErr.message);
             }
-          } catch (caErr) {
-            console.warn('[Cover Art Cascade Error]', caErr.message);
+
+            const result = {
+              success: true,
+              source: 'MusicBrainz',
+              barcode,
+              title: rel.title || 'Unknown Title',
+              subtitle: '',
+              creator: rel['artist-credit']?.map(ac => ac.name).join(', ') || 'Unknown Artist',
+              type: 'music',
+              description: `A music release cataloged on MusicBrainz. Status: ${rel.status || 'Official'}.`,
+              thumbnail,
+              publisher: rel['label-info']?.map(li => li.label?.name).filter(Boolean).join(', ') || 'Unknown Label',
+              publishedDate: rel.date ? rel.date.substring(0, 4) : 'N/A',
+              extra: {
+                mbid,
+                category: 'Music',
+                tracksCount: rel.media?.[0]?.['track-count'] || null,
+                tracks: rel.media?.[0]?.tracks?.map(t => t.title) || []
+              }
+            };
+
+            return sendResult(res, barcode, result);
           }
-
-          const result = {
-            success: true,
-            source: 'MusicBrainz',
-            barcode,
-            title: rel.title || 'Unknown Title',
-            subtitle: '',
-            creator: rel['artist-credit']?.map(ac => ac.name).join(', ') || 'Unknown Artist',
-            type: 'music',
-            description: `A music release cataloged on MusicBrainz. Status: ${rel.status || 'Official'}.`,
-            thumbnail,
-            publisher: rel['label-info']?.map(li => li.label?.name).filter(Boolean).join(', ') || 'Unknown Label',
-            publishedDate: rel.date ? rel.date.substring(0, 4) : 'N/A',
-            extra: {
-              mbid,
-              category: 'Music',
-              tracksCount: rel.media?.[0]?.['track-count'] || null
-            }
-          };
-
-          return sendResult(res, barcode, result);
         }
       }
     } catch (mbErr) {
