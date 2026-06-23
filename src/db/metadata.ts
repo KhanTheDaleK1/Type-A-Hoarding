@@ -36,7 +36,10 @@ const getHeaders = () => {
 
 export const fetchMetadataByBarcode = async (barcode: string, isVhs?: boolean): Promise<BarcodeResult | null> => {
   // 1. Clean and Normalize
-  let cleanBarcode = barcode.replace(/[-\s]/g, '');
+  let cleanBarcode = barcode;
+  if (!barcode.startsWith('mb_') && !barcode.startsWith('tmdb_')) {
+    cleanBarcode = barcode.replace(/[-\s]/g, '');
+  }
 
   const tryLookup = async (code: string): Promise<BarcodeResult | null> => {
     try {

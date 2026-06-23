@@ -267,7 +267,7 @@ app.get('/api/lookup/:barcode', async (req, res) => {
   const isVhs = req.query.isVhs === 'true';
 
   let barcode = req.params.barcode.trim();
-  const isCustomId = barcode.startsWith('tmdb_') || barcode.startsWith('mb_');
+  const isCustomId = barcode.startsWith('tmdb_') || barcode.startsWith('mb_') || barcode.startsWith('itunes_');
   if (!isCustomId) {
     barcode = barcode.replace(/[^0-9]/g, '');
   }
@@ -356,6 +356,12 @@ app.get('/api/lookup/:barcode', async (req, res) => {
             if (caRes.ok) {
               const caData = await caRes.json();
               thumbnail = caData.images?.[0]?.image || '';
+            } else if (rel['release-group']?.id) {
+              const caRgRes = await fetch(`https://coverartarchive.org/release-group/${rel['release-group'].id}`);
+              if (caRgRes.ok) {
+                const caRgData = await caRgRes.json();
+                thumbnail = caRgData.images?.[0]?.image || '';
+              }
             }
           } catch (e) {
             console.warn('Cover Art Archive lookup failed:', e.message);
@@ -385,6 +391,48 @@ app.get('/api/lookup/:barcode', async (req, res) => {
         }
       } catch (err) {
         console.error('[MusicBrainz Direct Error]', err.message);
+      }
+    }
+
+    // C. Handle iTunes Direct lookup
+    if (barcode.startsWith('itunes_')) {
+      try {
+        const collectionId = barcode.replace('itunes_', '');
+        console.log(`[iTunes Direct] Querying Collection ID: ${collectionId}`);
+        const itunesRes = await fetch(`https://itunes.apple.com/lookup?id=${collectionId}&entity=song`);
+        
+        if (itunesRes.ok) {
+          const itunesData = await itunesRes.json();
+          if (itunesData.results && itunesData.results.length > 0) {
+            const album = itunesData.results.find(r => r.wrapperType === 'collection');
+            const songs = itunesData.results.filter(r => r.wrapperType === 'track');
+            
+            if (album) {
+              const result = {
+                success: true,
+                source: 'iTunes',
+                barcode,
+                title: album.collectionName || 'Unknown Album',
+                subtitle: '',
+                creator: album.artistName || 'Unknown Artist',
+                type: 'music',
+                description: `Released: ${album.releaseDate ? album.releaseDate.substring(0, 10) : 'N/A'}. Genre: ${album.primaryGenreName}.`,
+                thumbnail: album.artworkUrl100 ? album.artworkUrl100.replace('100x100bb', '600x600bb') : '',
+                publisher: album.copyright || 'Unknown Label',
+                publishedDate: album.releaseDate ? album.releaseDate.substring(0, 4) : 'N/A',
+                extra: {
+                  category: 'Music',
+                  trackCount: album.trackCount,
+                  tracks: songs.map(s => s.trackName)
+                }
+              };
+
+              return sendResult(res, barcode, result);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[iTunes Direct Error]', err.message);
       }
     }
 
@@ -488,6 +536,12 @@ app.get('/api/lookup/:barcode', async (req, res) => {
               if (caRes.ok) {
                 const caData = await caRes.json();
                 thumbnail = caData.images?.[0]?.image || '';
+              } else if (rel['release-group']?.id) {
+                const caRgRes = await fetch(`https://coverartarchive.org/release-group/${rel['release-group'].id}`);
+                if (caRgRes.ok) {
+                  const caRgData = await caRgRes.json();
+                  thumbnail = caRgData.images?.[0]?.image || '';
+                }
               }
             } catch (caErr) {
               console.warn('[Cover Art Cascade Error]', caErr.message);
@@ -1006,35 +1060,65 @@ app.get('/api/search', async (req, res) => {
 
     // 3. Search music (MusicBrainz)
     if (type === 'all' || type === 'music') {
-      try {
-        const mbRes = await fetch(`https://musicbrainz.org/ws/2/release?query=${encodeURIComponent(query)}&fmt=json&limit=5`, {
-          headers: {
-            'User-Agent': 'AuraScan/1.0.0 (contact@example.com)'
-          }
-        });
-        if (mbRes.ok) {
-          const mbData = await mbRes.json();
-          if (mbData.releases) {
-            mbData.releases.slice(0, 5).forEach(r => {
-              results.push({
-                title: r.title,
-                creator: r['artist-credit']?.map(ac => ac.name).join(', ') || 'Unknown Artist',
-                type: 'music',
-                publishedDate: r.date ? r.date.substring(0, 4) : 'N/A',
-                barcode: r.barcode || `mb_${r.id}`, // MB barcode or MBID fallback
-                thumbnail: '',
-                source: 'MusicBrainz',
-                extra: {
-                  mbid: r.id,
-                  label: r['label-info']?.map(li => li.label?.name).filter(Boolean).join(', ') || 'N/A'
-                }
+        let musicFound = false;
+        try {
+          const mbRes = await fetch(`https://musicbrainz.org/ws/2/release?query=${encodeURIComponent(query)}&fmt=json&limit=5`, {
+            headers: {
+              'User-Agent': 'AuraScan/1.0.0 (contact@example.com)'
+            }
+          });
+          if (mbRes.ok) {
+            const mbData = await mbRes.json();
+            if (mbData.releases && mbData.releases.length > 0) {
+              musicFound = true;
+              mbData.releases.slice(0, 5).forEach(r => {
+                results.push({
+                  title: r.title,
+                  creator: r['artist-credit']?.map(ac => ac.name).join(', ') || 'Unknown Artist',
+                  type: 'music',
+                  publishedDate: r.date ? r.date.substring(0, 4) : 'N/A',
+                  barcode: r.barcode || `mb_${r.id}`, // MB barcode or MBID fallback
+                  thumbnail: '',
+                  source: 'MusicBrainz',
+                  extra: {
+                    mbid: r.id,
+                    label: r['label-info']?.map(li => li.label?.name).filter(Boolean).join(', ') || 'N/A'
+                  }
+                });
               });
-            });
+            }
+          }
+        } catch (err) {
+          console.warn('[Search API MusicBrainz Error]', err.message);
+        }
+
+        if (!musicFound) {
+          try {
+            console.log(`[iTunes Search Fallback] Querying: "${query}"`);
+            const itunesRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=album&limit=5`);
+            if (itunesRes.ok) {
+              const itunesData = await itunesRes.json();
+              if (itunesData.results && itunesData.results.length > 0) {
+                itunesData.results.forEach(r => {
+                  results.push({
+                    title: r.collectionName,
+                    creator: r.artistName || 'Unknown Artist',
+                    type: 'music',
+                    publishedDate: r.releaseDate ? r.releaseDate.substring(0, 4) : 'N/A',
+                    barcode: `itunes_${r.collectionId}`,
+                    thumbnail: r.artworkUrl100 ? r.artworkUrl100.replace('100x100bb', '600x600bb') : '',
+                    source: 'iTunes',
+                    extra: {
+                      trackCount: r.trackCount
+                    }
+                  });
+                });
+              }
+            }
+          } catch (err) {
+            console.error('[Search API iTunes Error]', err.message);
           }
         }
-      } catch (err) {
-        console.error('[Search API Music Error]', err.message);
-      }
     }
 
     // 4. Search video games (DuckDuckGo Instant Answer API)
