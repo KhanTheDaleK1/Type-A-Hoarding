@@ -19,18 +19,17 @@ const MovieWheel: React.FC<MovieWheelProps> = ({ items, collectionType, onClose,
   const animationRef = useRef<number | null>(null);
   const currentRotationRef = useRef<number>(0);
 
-  // Filter unwatched items
-  const unwatchedItems = items.filter(i => !i.watched);
+  // Available items (previously filtered for unwatched)
+  const availableItems = items;
 
   // Initialize and select a random subset of up to 10 items for the wheel
   const selectWheelItems = () => {
-    const unwatched = items.filter(i => !i.watched);
-    if (unwatched.length === 0) {
+    if (items.length === 0) {
       setWheelItems([]);
       return;
     }
     // Shuffle and pick up to 10
-    const shuffled = [...unwatched].sort(() => 0.5 - Math.random());
+    const shuffled = [...items].sort(() => 0.5 - Math.random());
     setWheelItems(shuffled.slice(0, 10));
   };
 
@@ -205,7 +204,7 @@ const MovieWheel: React.FC<MovieWheelProps> = ({ items, collectionType, onClose,
             {collectionType === 'Books' ? 'Book' : 'Movie'} Roulette
           </h2>
           <p className="text-white/40 font-bold uppercase tracking-widest text-xs">
-            {unwatchedItems.length} options remaining
+            {availableItems.length} options remaining
           </p>
         </header>
 
@@ -326,9 +325,9 @@ const MovieWheel: React.FC<MovieWheelProps> = ({ items, collectionType, onClose,
           </button>
         )}
 
-        {unwatchedItems.length === 0 && (
+        {availableItems.length === 0 && (
           <p className="text-danger font-black uppercase text-xs tracking-widest bg-danger/10 px-6 py-3 rounded-2xl border border-danger/20">
-            No unwatched options left!
+            No options left!
           </p>
         )}
       </div>

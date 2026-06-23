@@ -1136,7 +1136,7 @@ app.post('/api/identify-batch', async (req, res) => {
       - title (String): The exact title of the item.
       - creator (String): The author, artist, director, or manufacturer.
       - year (String): The release year, if visible.
-      - description (String): A detailed description of the item (e.g. plot summary, contents, or physical condition).
+      - description (String): A brief summary or description of this collectible item (1-3 sentences).
       - mediaType (String): The specific format of the item if identifiable (e.g., 'DVD', 'Blu-ray', '4K UHD', 'VHS', 'CD', 'Vinyl', etc.).
       - customData (Object): ${customPrompt}
 
