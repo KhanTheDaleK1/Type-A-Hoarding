@@ -1258,6 +1258,7 @@ ${JSON.stringify(customFields.map(f => ({ id: f.id, name: f.name, type: f.type }
   "weight": "string (e.g. 199.5 lbs - only if Pokemon card)",
   "height": "string (e.g. 5'07\\\" - only if Pokemon card)",
   "pokemonNumber": "string (e.g. #006 - only if Pokemon card)",
+  "evolution": "string (e.g. Evolves from Charmeleon - only if Pokemon card)",
   "platform": "string (e.g. Nintendo Wii - only if video game)",
   "director": "string (only if movie/vhs)",
   "artist": "string (only if music/art)",
