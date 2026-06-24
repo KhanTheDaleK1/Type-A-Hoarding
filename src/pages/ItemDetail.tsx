@@ -121,6 +121,37 @@ const ItemDetail: React.FC = () => {
                     <div className="text-sm font-bold">{item.customData.dateRead || 'Not Read'}</div>
                   </div>
                 </>
+              ) : collection?.type === 'Music' ? (
+                <>
+                  <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
+                    <div className="flex items-center gap-2 text-gray-500 mb-1">
+                      <ShieldCheck size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-wider">Genre</span>
+                    </div>
+                    <div className="text-sm font-black truncate">{item.customData.genre || 'Unknown'}</div>
+                  </div>
+                  <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
+                    <div className="flex items-center gap-2 text-gray-500 mb-1">
+                      <Tag size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-wider">Artist</span>
+                    </div>
+                    <div className="text-sm font-black truncate">{item.customData.author || item.customData.creator || 'Unknown'}</div>
+                  </div>
+                  <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
+                    <div className="flex items-center gap-2 text-gray-500 mb-1">
+                      <Tag size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-wider">Format</span>
+                    </div>
+                    <div className="text-lg font-black">{item.mediaType || 'N/A'}</div>
+                  </div>
+                  <div className="bg-bg-secondary p-4 rounded-2xl border border-border">
+                    <div className="flex items-center gap-2 text-gray-500 mb-1">
+                      <Calendar size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-wider">Listened</span>
+                    </div>
+                    <div className="text-sm font-bold">{item.customData.dateWatched || 'Never'}</div>
+                  </div>
+                </>
               ) : (
                 <>
                   <div className="bg-bg-secondary p-4 rounded-2xl border border-border">

@@ -403,7 +403,7 @@ const CollectionView: React.FC = () => {
                         ? 'bg-success text-white border-success' 
                         : 'bg-black/60 text-white/60 border-white/10 hover:bg-black/80 hover:text-white lg:opacity-0 lg:group-hover:opacity-100'
                     }`}
-                    title={item.watched ? `Mark as Un${collection.type === 'Books' ? 'read' : 'watched'}` : `Mark as ${collection.type === 'Books' ? 'Read' : 'Watched'}`}
+                    title={item.watched ? `Mark as Un${collection.type === 'Books' ? 'read' : collection.type === 'Music' ? 'listened' : 'watched'}` : `Mark as ${collection.type === 'Books' ? 'Read' : collection.type === 'Music' ? 'Listened' : 'Watched'}`}
                   >
                     <CheckCircle2 size={16} className={item.watched ? 'fill-white/20' : ''} />
                   </button>
@@ -417,6 +417,8 @@ const CollectionView: React.FC = () => {
                 <p className="text-sm opacity-70">
                   {collection.type === 'Books' ? (
                     <>{item.customData.author || 'Unknown Author'} • {item.customData.year || 'Unknown'}</>
+                  ) : collection.type === 'Music' ? (
+                    <>{item.customData.author || item.customData.creator || 'Unknown Artist'} • {item.customData.year || 'Unknown'}</>
                   ) : (
                     <>{item.customData.year || 'Unknown'} • {item.customData.contentRating || 'Unknown'}</>
                   )}
@@ -438,7 +440,7 @@ const CollectionView: React.FC = () => {
                     )}
                     {item.watched && (
                       <span className="inline-block text-[10px] font-bold uppercase tracking-wider bg-gray-500 text-white px-2 py-0.5 rounded shadow-sm">
-                        {collection.type === 'Books' ? 'Read' : 'Watched'}
+                        {collection.type === 'Books' ? 'Read' : collection.type === 'Music' ? 'Listened' : 'Watched'}
                       </span>
                     )}
                   </div>
@@ -465,7 +467,7 @@ const CollectionView: React.FC = () => {
                       ? 'text-success hover:bg-success/10' 
                       : 'text-gray-400 hover:bg-accent/10 hover:text-accent'
                   }`}
-                  title={item.watched ? `Mark as Un${collection.type === 'Books' ? 'read' : 'watched'}` : `Mark as ${collection.type === 'Books' ? 'Read' : 'Watched'}`}
+                  title={item.watched ? `Mark as Un${collection.type === 'Books' ? 'read' : collection.type === 'Music' ? 'listened' : 'watched'}` : `Mark as ${collection.type === 'Books' ? 'Read' : collection.type === 'Music' ? 'Listened' : 'Watched'}`}
                 >
                   <CheckCircle2 size={20} className={item.watched ? 'fill-success/20' : ''} />
                 </button>
