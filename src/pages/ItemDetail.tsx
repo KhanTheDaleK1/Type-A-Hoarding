@@ -180,6 +180,15 @@ const ItemDetail: React.FC = () => {
             </div>
           </section>
 
+          {item.notes && (
+            <section className="space-y-4">
+              <h2 className="text-sm font-black uppercase tracking-[0.2em] text-accent opacity-80 border-b border-border pb-2">Synopsis</h2>
+              <p className="text-sm leading-relaxed opacity-80 bg-bg-secondary p-4 rounded-2xl border border-border whitespace-pre-wrap">
+                {item.notes}
+              </p>
+            </section>
+          )}
+
           {item.customData.tracks && item.customData.tracks.length > 0 && (
             <section className="space-y-4">
               <h2 className="text-sm font-black uppercase tracking-[0.2em] text-accent opacity-80 border-b border-border pb-2 flex items-center justify-between">
@@ -193,15 +202,6 @@ const ItemDetail: React.FC = () => {
                   ))}
                 </ol>
               </div>
-            </section>
-          )}
-
-          {item.notes && (
-            <section className="space-y-4">
-              <h2 className="text-sm font-black uppercase tracking-[0.2em] text-accent opacity-80 border-b border-border pb-2">Synopsis</h2>
-              <p className="text-sm leading-relaxed opacity-80 bg-bg-secondary p-4 rounded-2xl border border-border whitespace-pre-wrap">
-                {item.notes}
-              </p>
             </section>
           )}
 
