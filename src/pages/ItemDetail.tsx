@@ -149,6 +149,22 @@ const ItemDetail: React.FC = () => {
             </div>
           </section>
 
+          {item.customData.tracks && item.customData.tracks.length > 0 && (
+            <section className="space-y-4">
+              <h2 className="text-sm font-black uppercase tracking-[0.2em] text-accent opacity-80 border-b border-border pb-2 flex items-center justify-between">
+                <span>Tracklist</span>
+                <span className="opacity-50 text-[10px]">{item.customData.tracks.length} Tracks</span>
+              </h2>
+              <div className="bg-bg-secondary p-4 rounded-2xl border border-border max-h-64 overflow-y-auto">
+                <ol className="list-decimal list-inside space-y-2 text-sm">
+                  {item.customData.tracks.map((track: string, index: number) => (
+                    <li key={index} className="opacity-80 truncate border-b border-border/50 pb-2 last:border-0 last:pb-0">{track}</li>
+                  ))}
+                </ol>
+              </div>
+            </section>
+          )}
+
           {item.notes && (
             <section className="space-y-4">
               <h2 className="text-sm font-black uppercase tracking-[0.2em] text-accent opacity-80 border-b border-border pb-2">Synopsis</h2>

@@ -371,6 +371,20 @@ app.get('/api/lookup/:barcode', async (req, res) => {
             console.warn('Cover Art Archive lookup failed:', e.message);
           }
 
+          if (!thumbnail && rel.title) {
+            try {
+              const itunesRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(rel.title + ' ' + (rel['artist-credit']?.[0]?.name || ''))}&entity=album&limit=1`);
+              if (itunesRes.ok) {
+                const itunesData = await itunesRes.json();
+                if (itunesData.results && itunesData.results.length > 0) {
+                  thumbnail = itunesData.results[0].artworkUrl100 ? itunesData.results[0].artworkUrl100.replace('100x100bb', '600x600bb') : '';
+                }
+              }
+            } catch (itErr) {
+              console.warn('[iTunes Cover Art Fallback Error]', itErr.message);
+            }
+          }
+
           const result = {
             success: true,
             source: 'MusicBrainz',
@@ -553,6 +567,20 @@ app.get('/api/lookup/:barcode', async (req, res) => {
               }
             } catch (caErr) {
               console.warn('[Cover Art Cascade Error]', caErr.message);
+            }
+
+            if (!thumbnail && rel.title) {
+              try {
+                const itunesRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(rel.title + ' ' + (rel['artist-credit']?.[0]?.name || ''))}&entity=album&limit=1`);
+                if (itunesRes.ok) {
+                  const itunesData = await itunesRes.json();
+                  if (itunesData.results && itunesData.results.length > 0) {
+                    thumbnail = itunesData.results[0].artworkUrl100 ? itunesData.results[0].artworkUrl100.replace('100x100bb', '600x600bb') : '';
+                  }
+                }
+              } catch (itErr) {
+                console.warn('[iTunes Cover Art Fallback Error]', itErr.message);
+              }
             }
 
             const result = {
@@ -1066,10 +1094,38 @@ app.get('/api/search', async (req, res) => {
       }
     }
 
-    // 3. Search music (MusicBrainz)
+    // 3. Search music
     if (type === 'all' || type === 'music') {
-        let musicFound = false;
+      let itunesFound = false;
+      try {
+        const itunesRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=album&limit=5`);
+        if (itunesRes.ok) {
+          const itunesData = await itunesRes.json();
+          if (itunesData.results && itunesData.results.length > 0) {
+            itunesFound = true;
+            itunesData.results.forEach(r => {
+              results.push({
+                title: r.collectionName,
+                creator: r.artistName || 'Unknown Artist',
+                type: 'music',
+                publishedDate: r.releaseDate ? r.releaseDate.substring(0, 4) : 'N/A',
+                barcode: `itunes_${r.collectionId}`,
+                thumbnail: r.artworkUrl100 ? r.artworkUrl100.replace('100x100bb', '600x600bb') : '',
+                source: 'iTunes',
+                extra: {
+                  trackCount: r.trackCount
+                }
+              });
+            });
+          }
+        }
+      } catch (err) {
+        console.error('[Search API iTunes Error]', err.message);
+      }
+
+      if (!itunesFound) {
         try {
+          console.log(`[MusicBrainz Fallback] Querying: "${query}"`);
           const mbRes = await fetch(`https://musicbrainz.org/ws/2/release?query=${encodeURIComponent(query)}&fmt=json&limit=5`, {
             headers: {
               'User-Agent': 'AuraScan/1.0.0 (contact@example.com)'
@@ -1078,7 +1134,6 @@ app.get('/api/search', async (req, res) => {
           if (mbRes.ok) {
             const mbData = await mbRes.json();
             if (mbData.releases && mbData.releases.length > 0) {
-              musicFound = true;
               mbData.releases.slice(0, 5).forEach(r => {
                 results.push({
                   title: r.title,
@@ -1099,34 +1154,7 @@ app.get('/api/search', async (req, res) => {
         } catch (err) {
           console.warn('[Search API MusicBrainz Error]', err.message);
         }
-
-        if (!musicFound) {
-          try {
-            console.log(`[iTunes Search Fallback] Querying: "${query}"`);
-            const itunesRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=album&limit=5`);
-            if (itunesRes.ok) {
-              const itunesData = await itunesRes.json();
-              if (itunesData.results && itunesData.results.length > 0) {
-                itunesData.results.forEach(r => {
-                  results.push({
-                    title: r.collectionName,
-                    creator: r.artistName || 'Unknown Artist',
-                    type: 'music',
-                    publishedDate: r.releaseDate ? r.releaseDate.substring(0, 4) : 'N/A',
-                    barcode: `itunes_${r.collectionId}`,
-                    thumbnail: r.artworkUrl100 ? r.artworkUrl100.replace('100x100bb', '600x600bb') : '',
-                    source: 'iTunes',
-                    extra: {
-                      trackCount: r.trackCount
-                    }
-                  });
-                });
-              }
-            }
-          } catch (err) {
-            console.error('[Search API iTunes Error]', err.message);
-          }
-        }
+      }
     }
 
     // 4. Search video games (DuckDuckGo Instant Answer API)

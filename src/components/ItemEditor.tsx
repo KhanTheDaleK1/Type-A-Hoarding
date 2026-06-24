@@ -251,7 +251,8 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ collection, item, onClose }) =>
           year: metadata.year,
           genre: metadata.genre,
           dateRead: collection.type === 'Books' ? '' : undefined,
-          dateWatched: collection.type === 'Movies' ? '' : undefined
+          dateWatched: collection.type === 'Movies' ? '' : undefined,
+          tracks: metadata.tracks
         }
       };
 
