@@ -127,6 +127,7 @@ export const fetchMetadataByTitle = async (title: string, type: string, isVhs?: 
         description: first.description || undefined,
         mediaType: first.type ? (first.type.charAt(0).toUpperCase() + first.type.slice(1)) : undefined,
         genre: first.extra?.genres?.join(', ') || first.extra?.category || undefined,
+        tracks: first.extra?.tracks || undefined,
         source: first.source
       };
     }

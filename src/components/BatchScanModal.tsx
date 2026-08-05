@@ -111,6 +111,7 @@ const BatchScanModal: React.FC<BatchScanModalProps> = ({ collection, onClose }) 
           let thumbnail = '';
           let fetchedAuthor = itemResult.creator || '';
           let fetchedYear = itemResult.year || '';
+          let fetchedTracks = itemResult.tracks || [];
           
           // Fetch metadata using title only for supported database types
           const supportedTypes = ['Movies', 'Books', 'Music', 'Video Games', 'TV Shows', 'Trading Cards'];
@@ -121,6 +122,7 @@ const BatchScanModal: React.FC<BatchScanModalProps> = ({ collection, onClose }) 
                  thumbnail = meta.thumbnail || '';
                  if (!fetchedAuthor) fetchedAuthor = meta.author || '';
                  if (!fetchedYear) fetchedYear = meta.year || '';
+                 if (meta.tracks) fetchedTracks = meta.tracks;
                  if (meta.description && !itemResult.description) {
                    itemResult.description = meta.description;
                  }
@@ -145,7 +147,8 @@ const BatchScanModal: React.FC<BatchScanModalProps> = ({ collection, onClose }) 
             customData: {
               ...(itemResult.customData || {}),
               author: fetchedAuthor,
-              year: fetchedYear
+              year: fetchedYear,
+              tracks: fetchedTracks.length > 0 ? fetchedTracks : undefined
             }
           };
 

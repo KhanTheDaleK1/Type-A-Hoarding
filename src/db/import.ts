@@ -82,8 +82,9 @@ export const fetchMetadataInBackground = async (items: Item[], collectionId?: st
   }
 
   for (const item of items) {
-    // Only fetch if missing images or description
-    if (item.images.length > 0 && item.notes) continue;
+    // Only fetch if missing images, description, or tracks (for Music)
+    const isMusicMissingTracks = collType === 'Music' && (!item.customData?.tracks || item.customData.tracks.length === 0);
+    if (item.images.length > 0 && item.notes && !isMusicMissingTracks) continue;
 
     try {
       let metadata = null;
@@ -108,9 +109,23 @@ export const fetchMetadataInBackground = async (items: Item[], collectionId?: st
         if (metadata.thumbnail && item.images.length === 0) updates.images = [metadata.thumbnail];
         if (metadata.description && !item.notes) updates.notes = metadata.description;
         
+        let customDataUpdated = false;
+        const newCustomData = { ...item.customData };
+
         // Update genre if it's currently generic or unknown
         if (metadata.genre && (!item.customData.genre || item.customData.genre === 'Unknown')) {
-          updates.customData = { ...item.customData, genre: metadata.genre.split(',')[0].trim() };
+          newCustomData.genre = metadata.genre.split(',')[0].trim();
+          customDataUpdated = true;
+        }
+
+        // Update tracks if they are missing
+        if (metadata.tracks && metadata.tracks.length > 0 && (!item.customData.tracks || item.customData.tracks.length === 0)) {
+          newCustomData.tracks = metadata.tracks;
+          customDataUpdated = true;
+        }
+
+        if (customDataUpdated) {
+          updates.customData = newCustomData;
         }
 
         if (Object.keys(updates).length > 0) {
